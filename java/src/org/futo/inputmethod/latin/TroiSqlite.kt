@@ -78,6 +78,9 @@ private const val FULL_WORD_MULTIPLIER = 2
 private const val CONTEXT_LENGTH_MULTIPLIER = 10
 private const val DATABASE_FILE_NAME = "literatim"
 private const val ASSET_FILE = "sqlite/$DATABASE_FILE_NAME.zip"
+// Equivalent to ngram.py -> PHRASE_SEPARATOR. Used to split context into phrases
+private val PHRASE_SEPARATOR = Regex("(?:-+(?!\\w)|(?<!\\w)-+|[^-\\w'’\\s]|\\S*[0-9]+\\S*)+")
+
 
 /**
  * Predictive text engine using SQLite n-gram database (Singleton)
@@ -197,7 +200,8 @@ object TroiSqliteIME {
         // the following closely follows LanguageModel.kt -> getSuggestions() to get the context, then split it on ' ' to pass to predict()
         val composeInfo = getComposeInfo(composedData, keyDetector)
         val context = getContext(composeInfo, ngramContext)
-        var ngram = context.split(" ").toTypedArray()
+        // context can be very long (includes everything written, only consider new sentences /
+        var ngram = context.split(PHRASE_SEPARATOR).last().split(" ").toTypedArray()
         // add composeInfo.partialWord -> even if it's empty, that way we get ["fy", "enw", ""] signifying new word
         ngram += composeInfo.partialWord
 
