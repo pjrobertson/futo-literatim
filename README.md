@@ -55,6 +55,18 @@ You can then open the project in Android Studio and build it that way, or use gr
 >    }
 > ```
 
+
+## Adding the .sqlite file to the project
+
+1. After creating your sqlite file, zip it using `zip -r ../literatim.zip literatim.sqlite`
+
+> [!WARNING]
+> You must zip into the parent folder (`../`) so that the zip is 'flat'. We don't want any subfolders. The contents of the zip file should be:
+> ```
+>    literatim.zip:
+>        literatim.sqlite
+> ```
+
 ## Testing
 
 **Futo tests** - You can run things like `./gradlew connectedAndroidTest` to run test (see all tests with `./gradlew tasks`). However tests seem to be failing right now
