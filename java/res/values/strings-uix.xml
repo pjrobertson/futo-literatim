@@ -533,14 +533,11 @@
     <string name="setup_step_1">Setup - Step 1</string>
     <string name="setup_step_2">Setup - Step 2</string>
     <string name="setup_step_3">Setup - Step 3</string>
-    <string name="setup_welcome_text">Welcome to LiteratIM Keyboard!\n\nTo get started, you must first download the dictionary file for Welsh.</string>]
-    <string name="setup_open_input_settings_text">Next, you must enable LiteratIM Keyboard as an input method in your device\'s settings.</string>
+    <string name="setup_welcome_text">Welcome to LiteratIM Keyboard! This product is still under development and not yet finished.\n\nTo get started, enable LiteratIM Keyboard as an input method.</string>
     <string name="setup_open_input_settings">Open Input Method Settings</string>
     <string name="setup_warning_multiple_versions">Warning: You seem to have both Play Store and Standalone versions installed, we only recommend installing one</string>
     <string name="setup_active_input_method">Please select LiteratIM Keyboard as your active input method.</string>
     <string name="setup_switch_input_methods">Switch Input Methods</string>
-    <string name="download_dictionary_file">Download dictionary file</string>
-
 
     <!-- Credits menu -->
     <string name="credits_menu_title">Credits</string>

@@ -9,7 +9,7 @@ import androidx.compose.ui.platform.LocalView
 import org.futo.inputmethod.accessibility.AccessibilityUtils
 
 @Composable
-fun SetupOrMain(isDatabaseDownloaded: Boolean, inputMethodEnabled: Boolean, inputMethodSelected: Boolean, doublePackage: Boolean, main: @Composable () -> Unit) {
+fun SetupOrMain(inputMethodEnabled: Boolean, inputMethodSelected: Boolean, doublePackage: Boolean, main: @Composable () -> Unit) {
     val wasSetupActive = remember { mutableStateOf(false) }
     val view = LocalView.current
     val context = LocalContext.current
@@ -20,13 +20,12 @@ fun SetupOrMain(isDatabaseDownloaded: Boolean, inputMethodEnabled: Boolean, inpu
             AccessibilityUtils.init(context)
             if(AccessibilityUtils.getInstance().isAccessibilityEnabled) {
                 AccessibilityUtils.getInstance()
-                    .announceForAccessibility(view, "LiteratIM Keyboard has been activated")
+                    .announceForAccessibility(view, "FUTO Keyboard has been activated")
             }
         }
     }
-    if (!isDatabaseDownloaded) {
-        SetupDownloadDatabase()
-    } else if (!inputMethodEnabled) {
+
+    if (!inputMethodEnabled) {
         SetupEnableIME()
     } else if (!inputMethodSelected) {
         SetupChangeDefaultIME(doublePackage)
