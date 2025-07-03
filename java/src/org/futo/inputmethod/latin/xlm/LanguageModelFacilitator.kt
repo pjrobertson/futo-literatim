@@ -35,12 +35,14 @@ import org.futo.inputmethod.latin.settings.SettingsValuesForSuggestion
 import org.futo.inputmethod.latin.uix.SHOW_EMOJI_SUGGESTIONS
 import org.futo.inputmethod.latin.uix.SettingsKey
 import org.futo.inputmethod.latin.uix.USE_TRANSFORMER_FINETUNING
-import org.futo.inputmethod.latin.uix.actions.PersistentEmojiState
 import org.futo.inputmethod.latin.uix.getSetting
 import org.futo.inputmethod.latin.uix.getSettingFlow
 import org.futo.inputmethod.latin.utils.AsyncResultHolder
 import org.futo.inputmethod.latin.utils.SuggestionResults
 import kotlin.math.ceil
+
+import org.futo.inputmethod.latin.TroiSqliteIME
+
 
 
 val AutocorrectThresholdSetting = SettingsKey(
@@ -186,11 +188,63 @@ public class LanguageModelFacilitator(
         return true
     }
 
+    private suspend fun getSuggestionsFromTroiSqlite(values: PredictionInputValues): ArrayList<SuggestedWordInfo>? {
+
+        try {
+            TroiSqliteIME.initialize(context)
+            val results = TroiSqliteIME.getSuggestions(
+                values.composedData,
+                values.ngramContext,
+                keyboardSwitcher.mainKeyboardView.mKeyDetector)
+
+            if (results.isEmpty()) return null
+
+            // Convert results (ArrayList<WordPrediction>) to ArrayList<SuggestedWordInfo>
+            val suggestions = ArrayList<SuggestedWordInfo>().apply {
+                for ((i, prediction) in results.withIndex()) {
+                add(
+                    SuggestedWordInfo(
+                    prediction.wordform,
+                    "",
+                    prediction.score,
+                    SuggestedWordInfo.KIND_WHITELIST,
+                    null,
+                    0,
+                    0
+                    )
+                )
+                }
+            }
+            return suggestions;
+        }catch (e: IllegalStateException) {
+            Log.e("LanguageModelFacilitator", "Error getting suggestions from TroiSqlite: ${e.message}")
+            e.printStackTrace()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    context,
+                    "Unable to load Troi database, it may be corrupted or unsupported.",
+                    Toast.LENGTH_LONG
+                ).show()
+                transformerDisabled = true
+                e.printStackTrace()
+            }
+            return null
+        }
+
+    }
+
     private var skipLanguage: String? = null
     private suspend fun runLanguageModel(values: PredictionInputValues): ArrayList<SuggestedWordInfo>? {
+
         if(transformerDisabled) return null
 
         val locale = dictionaryFacilitator.primaryLocale ?: return null
+
+        // TODO: improve hard coding of cy locale here. E.g. could check if the locale supports the TroiSqlite format
+        if (locale.language == "cy") {
+            return getSuggestionsFromTroiSqlite(values)
+        }
+
         if ((languageModel == null && locale.language != skipLanguage) || (languageModel != null && languageModel?.locale?.language != locale.language)) {
             skipLanguage = null
             Log.d(
@@ -292,6 +346,7 @@ public class LanguageModelFacilitator(
 
             val lmSuggestions = runLanguageModel(values)
 
+            // null when ML transformer is disabled or when the locale does not have a model
             if(lmSuggestions == null) {
                 holder.get(null, Constants.GET_SUGGESTED_WORDS_TIMEOUT.toLong())?.let { results ->
                     job.cancel()

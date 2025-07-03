@@ -158,7 +158,7 @@ object ModelPaths {
         }
         if(unsupportedFeatures.isNotEmpty()) {
             file.delete()
-            throw IllegalArgumentException("Model has the following unknown features: [${unsupportedFeatures.joinToString(separator=", ")}]\nYou probably need to update FUTO Keyboard.")
+            throw IllegalArgumentException("Model has the following unknown features: [${unsupportedFeatures.joinToString(separator=", ")}]\nYou probably need to update LiteratIM Keyboard.")
         }
 
         return file

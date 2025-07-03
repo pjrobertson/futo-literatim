@@ -498,6 +498,10 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
         Settings.getInstance().settingsChangedListeners.clear()
 
+        // Close sqlite database:  android docs state to keep the connection open as long as possible/close onDestroy()
+        // https://developer.android.com/training/data-storage/sqlite#PersistingDbConnection
+        TroiSqliteIME.cleanup()
+
         latinIMELegacy.onDestroy()
         super.onDestroy()
     }

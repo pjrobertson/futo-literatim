@@ -112,6 +112,9 @@ object Subtypes {
             removeExtensionsIfNecessary(context)
             return
         }
+        
+        // Hard codes to add the Welsh keyboard for LiteratIM (we always want Welsh). TODO: modify if/when expanding to other languages
+        addLanguage(context, Locale.forLanguageTag("cy"), "welsh_qwerty")
 
         val locales = context.resources.configuration.locales
         if(locales.size() == 0) return
