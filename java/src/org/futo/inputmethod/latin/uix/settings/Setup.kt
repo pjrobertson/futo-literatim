@@ -21,9 +21,12 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,11 +39,22 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.futo.inputmethod.latin.R
 import org.futo.inputmethod.latin.uix.KeyboardLayoutPreview
 import org.futo.inputmethod.latin.uix.USE_SYSTEM_VOICE_INPUT
 import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.v2keyboard.LayoutManager
+import java.io.File
+import java.io.FileOutputStream
+import java.net.URL
+import java.util.zip.ZipInputStream
+
+
+// TODO: Move this to a config file or similar
+private const val DATABASE_URL = "http://192.168.1.221:8000/literatim.zip"
 
 @Composable
 fun SetupContainer(inner: @Composable () -> Unit) {
@@ -94,6 +108,182 @@ fun Step(fraction: Float, text: String) {
     }
 }
 
+
+@Composable
+@Preview
+fun SetupDownloadDatabase() {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    
+    // State management for download process
+    var isDownloading by remember { mutableStateOf(false) }
+    var isExtracting by remember { mutableStateOf(false) }
+    var progress by remember { mutableFloatStateOf(0f) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Suspend function to handle the download process
+    suspend fun downloadFile() {
+        withContext(Dispatchers.IO) {
+            // All network and file operations happen on IO thread
+            val url = URL(DATABASE_URL)
+            val connection = url.openConnection()
+            val totalSize = connection.contentLength
+            val input = connection.getInputStream()
+
+            // Download to cache
+            val zipFile = File(context.cacheDir, "literatim.zip")
+            val output = FileOutputStream(zipFile)
+            val buffer = ByteArray(8192)
+            var downloaded = 0
+            var read: Int
+            
+            while (input.read(buffer).also { read = it } != -1) {
+                output.write(buffer, 0, read)
+                downloaded += read
+                val newProgress = if (totalSize > 0) downloaded.toFloat() / totalSize else 0f
+                
+                // Update progress on main thread
+                withContext(Dispatchers.Main) {
+                    progress = newProgress
+                }
+            }
+            output.close()
+            input.close()
+            // Unzip
+            withContext(Dispatchers.Main) {
+                isExtracting = true
+                isDownloading = false
+            }
+            val zip = ZipInputStream(zipFile.inputStream())
+            var entry = zip.nextEntry
+            while (entry != null) {
+                // NOTE: .zip file should only contain one .sqlite file. Will fail otherwise
+                if (!entry.isDirectory && entry.name.endsWith(".sqlite")) {
+                    // Write to a temporary file first - avoids the existence check false positive whilst extracting
+                    val tempFile = File(context.filesDir, "literatim.sqlite.tmp")
+                    val outStream = FileOutputStream(tempFile)
+                    var len: Int
+                    while (zip.read(buffer).also { len = it } > 0) {
+                        outStream.write(buffer, 0, len)
+                    }
+                    outStream.close()
+                    // After extraction, rename to final file
+                    val finalFile = File(context.filesDir, "literatim.sqlite")
+                    if (finalFile.exists()) {
+                        finalFile.delete()
+                    }
+                    tempFile.renameTo(finalFile)
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+            zip.close()
+            // Clean up zip file
+            zipFile.delete()
+        }
+    }
+
+    // Clean click handler that launches the download
+    val startDownload = {
+        isDownloading = true
+        isExtracting = false
+        errorMessage = null
+        progress = 0f
+        
+        coroutineScope.launch {
+            try {
+                downloadFile()
+                // Update UI state on main thread
+                isDownloading = false
+                isExtracting = false
+            } catch (e: Exception) {
+                // Update error state on main thread
+                errorMessage = e.localizedMessage ?: "Download failed"
+                isDownloading = false
+                isExtracting = false
+            }
+        }
+        Unit // Return Unit to match expected lambda type
+    }
+
+    SetupContainer {
+        Column {
+            Step(fraction = 1.0f/4.0f, text = stringResource(R.string.setup_step_1))
+
+            Text(
+                stringResource(R.string.setup_welcome_text),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            // Show different UI based on state
+            when {
+                isDownloading -> {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text("Downloading dictionary...")
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        )
+                        Text("${(progress * 100).toInt()}%")
+                    }
+                }
+                isExtracting -> {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text("Extracting dictionary...")
+                        // don't pass progress -> indeterminate
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        )
+                    }
+                }
+                
+                errorMessage != null -> {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            "Error: $errorMessage",
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                        Button(
+                            onClick = startDownload,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                        ) {
+                            Text("Retry Download")
+                        }
+                    }
+                }
+                
+                else -> {
+                    Button(
+                        onClick = startDownload,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Text(stringResource(R.string.download_dictionary_file))
+                    }
+                }
+            }
+        }
+    }
+}
+
 // TODO: May wish to have a skip option
 @Composable
 @Preview
@@ -114,10 +304,10 @@ fun SetupEnableIME() {
 
     SetupContainer {
         Column {
-            Step(fraction = 1.0f/3.0f, text = stringResource(R.string.setup_step_1))
+            Step(fraction = 2.0f/4.0f, text = stringResource(R.string.setup_step_2))
 
             Text(
-                stringResource(R.string.setup_welcome_text),
+                stringResource(R.string.setup_open_input_settings_text),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -154,7 +344,7 @@ fun SetupChangeDefaultIME(doublePackage: Boolean = true) {
                 Tip(stringResource(R.string.setup_warning_multiple_versions))
             }
 
-            Step(fraction = 2.0f/3.0f, text = stringResource(R.string.setup_step_2))
+            Step(fraction = 3.0f/4.0f, text = stringResource(R.string.setup_step_3))
 
             Text(
                 stringResource(R.string.setup_active_input_method),

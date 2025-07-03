@@ -143,11 +143,13 @@ android {
 
     buildTypes {
         debug {
+            manifestPlaceholders = [usesCleartextTraffic:"true"]
             minifyEnabled false
             shrinkResources false
             signingConfig signingConfigs.debug
         }
         release {
+            manifestPlaceholders = [usesCleartextTraffic:"false"]
             minifyEnabled true
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'

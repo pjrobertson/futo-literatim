@@ -53,6 +53,11 @@ import org.futo.inputmethod.v2keyboard.LayoutManager
 import java.io.File
 import kotlin.math.sqrt
 
+private fun Context.isDatabaseDownloaded(): Boolean {
+    val databaseFile = File(filesDir, "literatim.sqlite")
+    return databaseFile.exists() && databaseFile.length() > 0
+}
+
 private fun Context.isInputMethodEnabled(): Boolean {
     val packageName = packageName
     val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
@@ -88,6 +93,7 @@ public const val EXPORT_GGUF_MODEL_REQUEST = 80595439
 class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
     private val themeOption: MutableState<ThemeOption?> = mutableStateOf(null)
 
+    private val databaseDownloaded = mutableStateOf(false)
     private val inputMethodEnabled = mutableStateOf(false)
     private val inputMethodSelected = mutableStateOf(false)
     private val doublePackage = mutableStateOf(false)
@@ -105,8 +111,10 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
 
     @OptIn(DelicateCoroutinesApi::class)
     fun updateSystemState() {
+        val databaseDownloaded = isDatabaseDownloaded()
         val inputMethodEnabled = isInputMethodEnabled()
         val inputMethodSelected = isDefaultIMECurrent()
+        this.databaseDownloaded.value = databaseDownloaded
         this.inputMethodEnabled.value = inputMethodEnabled
         this.inputMethodSelected.value = inputMethodSelected
 
@@ -129,7 +137,7 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
             startActivity(intent)
         }
 
-        if(!inputMethodEnabled || !inputMethodSelected) {
+        if(!databaseDownloaded || !inputMethodEnabled || !inputMethodSelected) {
             if(pollJob == null || !pollJob!!.isActive) {
                 pollJob = GlobalScope.launch {
                     systemStatePoller()
@@ -139,7 +147,7 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
     }
 
     private suspend fun systemStatePoller() {
-        while(!this.inputMethodEnabled.value || !this.inputMethodSelected.value) {
+        while(!this.databaseDownloaded.value || !this.inputMethodEnabled.value || !this.inputMethodSelected.value) {
             delay(200)
             updateSystemState()
         }
@@ -163,6 +171,7 @@ class SettingsActivity : ComponentActivity(), DynamicThemeProviderOwner {
                         ) {
                             Box(Modifier.safeDrawingPadding()) {
                                 SetupOrMain(
+                                    databaseDownloaded.value,
                                     inputMethodEnabled.value,
                                     inputMethodSelected.value,
                                     doublePackage.value
