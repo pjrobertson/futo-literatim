@@ -30,7 +30,7 @@ If you forgot to specify recursive clone, use this to fetch submodules:
 git submodule update --init --recursive
 ```
 
-### Command Line:
+### Command Line Building
 1. Then make sure you have Java <20  (Java 20+ not supported at time of writing [[ref](https://docs.gradle.org/8.2/userguide/compatibility.html)])
 2. Download and install Android command line tools from [here](https://developer.android.com/studio#command-line-tools-only), OR if you want to use Android Studio then download that [here](https://developer.android.com/studio)
 3. For command line tools, unzip and move the *contents* of the folder to `~/.android/cmdline-tools/latest/` - note: the `latest` here is important. (For macOS: `~/Library/Android/cmdline-tools/latest/`)
@@ -42,7 +42,11 @@ You can then open the project in Android Studio and build it that way, or use gr
 ./gradlew assembleStableRelease
 ```
 
-### Android Studio
+> [!TIP]
+> For a full list of tasks, run `./gradlew tasks`
+
+
+### Android Studio Building
 1. Download [Android Studio](https://developer.android.com/studio)
 2. Install and download SDKs, platform tools etc.
 
@@ -55,21 +59,24 @@ You can then open the project in Android Studio and build it that way, or use gr
 >    }
 > ```
 
+### Release / Package Builds
+
+From Android Studio, go to `Build > Select Build Variant...` then from the 'Build Variants' section choose the required variant.
+
+> [!NOTE]
+> The default `unstablDebug` variant apk won't build, because the `compileUnstableDebugAndroidTestKotlin` task is currently failing. Try `stableDebug`/`stableRelease` or `playstoreRelease`
+
+From the command line, run:
+
+`./gradlew assembleStable`
+
+*Signed Builds:* set up your keystore first either in Android Studio with `Build > Generate Signed App Bundle` or APK... or by creating the `keystore.properties` file. [More info here](https://developer.android.com/studio/publish/app-signing#secure-shared-keystore).
+
 
 ## Adding the .sqlite file to the project
 
-1. After creating your sqlite file, zip it using `zip -r ../literatim.zip literatim.sqlite`
-
-> [!WARNING]
-> You must zip into the parent folder (`../`) so that the zip is 'flat'. We don't want any subfolders. The contents of the zip file should be:
-> ```
->    literatim.zip:
->        literatim.sqlite
-> ```
+1. After creating your sqlite file, zip it and copy it to the `java/assets/sqlite` folder. **THIS STEP IS REQUIRED!**
 
 ## Testing
 
 **Futo tests** - You can run things like `./gradlew connectedAndroidTest` to run test (see all tests with `./gradlew tasks`). However tests seem to be failing right now
-
-
-Several 
