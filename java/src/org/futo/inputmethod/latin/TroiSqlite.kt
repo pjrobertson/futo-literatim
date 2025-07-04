@@ -261,7 +261,7 @@ object TroiSqliteIME {
                 while (it.moveToNext()) {
                     val wordform = it.getString(0)
                     val score = it.getInt(1)
-                    val contextLength = -context.size
+                    val contextLength = -(context.size + 1) // +1  since context may be [] by the end
                     val currentValue = Pair(contextLength, score * -contextLength * CONTEXT_LENGTH_MULTIPLIER)
                     nextWordScores[wordform] = minOf(
                         currentValue,
@@ -303,7 +303,7 @@ object TroiSqliteIME {
                     while (it.moveToNext()) {
                         val wordform = it.getString(0)
                         val score = it.getInt(1)
-                        val contextLength = -context.size
+                        val contextLength = -(context.size + 1) // +1  since context may be [] by the end
                         // Change from IME - here we *multiply* by the context Length since we want to account for longer sentence formations having higher matches
                         val currentValue = Pair(contextLength, score * -contextLength * CONTEXT_LENGTH_MULTIPLIER)
                         nextWordScores[wordform] = maxOf(
