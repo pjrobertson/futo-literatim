@@ -9,7 +9,6 @@ import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 
 import java.io.File
-import java.util.zip.ZipInputStream
 
 /**
  * TroiSqliteIME - Predictive Text Engine for Welsh Language Input (Singleton)
@@ -76,8 +75,8 @@ data class WordPrediction(
 
 private const val FULL_WORD_MULTIPLIER = 2
 private const val CONTEXT_LENGTH_MULTIPLIER = 10
-private const val DATABASE_FILE_NAME = "literatim"
-private const val ASSET_FILE = "sqlite/$DATABASE_FILE_NAME.zip"
+private const val DATABASE_FILE_NAME = "literatim.sqlite"
+private const val ASSET_FILE = "sqlite/$DATABASE_FILE_NAME"
 // Equivalent to ngram.py -> PHRASE_SEPARATOR. Used to split context into phrases
 private val PHRASE_SEPARATOR = Regex("(?:-+(?!\\w)|(?<!\\w)-+|[^-\\w'’\\s]|\\S*[0-9]+\\S*)+")
 
@@ -103,33 +102,21 @@ object TroiSqliteIME {
     }
 
     private fun initializeDatabase(context: Context) {
-        val dbFile = File(context.filesDir, "$DATABASE_FILE_NAME.sqlite")
+        val dbFile = File(context.filesDir, "$DATABASE_FILE_NAME")
         
 
         // check the database file exists, if not copy it from literatim.zip in assets folder to the files directory
         if (!dbFile.exists()) {
-            val buffer = ByteArray(8192)
-            // write to temporary file, then copy over - to avoid any issues when unzipping (e.g. crash/force close)
-            val zipFile = ZipInputStream(context.assets.open(ASSET_FILE))
-            var entry = zipFile.nextEntry
-            while (entry != null) {
-                if (!entry.isDirectory && entry.name.endsWith(".sqlite")) {
-                    // Write to a temporary file first - avoids the existence check false positive whilst extracting
-                    val tempFile = File(context.filesDir, "literatim.sqlite.tmp")
-                    val outputStream = tempFile.outputStream()
-                    var len: Int
-                    while (zipFile.read(buffer).also { len = it } > 0) {
-                        outputStream.write(buffer, 0, len)
+            // Copy the .sqlite file directly from assets to the files directory
+            context.assets.open(ASSET_FILE).use { inputStream ->
+                dbFile.outputStream().use { outputStream ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (inputStream.read(buffer).also { bytesRead = it } > 0) {
+                        outputStream.write(buffer, 0, bytesRead)
                     }
-                    outputStream.close()
-                    // Now move the temporary file to the final location - NOTE: this may fail
-
-                    tempFile.renameTo(dbFile)
-                    break
                 }
-                entry = zipFile.nextEntry
             }
-            zipFile.closeEntry()
         }
         
         val factory = FrameworkSQLiteOpenHelperFactory()
