@@ -75,7 +75,11 @@ From the command line, run:
 
 ## Adding the .sqlite file to the project
 
-1. After creating your sqlite file, zip it and copy it to the `java/assets/sqlite` folder. **THIS STEP IS REQUIRED!**
+After creating your sqlite file, copy it to `java/assets/sqlite/literatim.sqlite`
+
+> [!WARNING] **THIS STEP IS REQUIRED!**
+> If you don't do this step, your app won't be able to open the sqlite file and will crash!
+
 
 ## Testing
 
