@@ -102,7 +102,7 @@ object TroiSqliteIME {
     }
 
     private fun initializeDatabase(context: Context) {
-        val dbFile = File(context.filesDir, "$DATABASE_FILE_NAME")
+        val dbFile = File(context.filesDir, DATABASE_FILE_NAME)
         
 
         // check the database file exists, if not copy it from literatim.zip in assets folder to the files directory
