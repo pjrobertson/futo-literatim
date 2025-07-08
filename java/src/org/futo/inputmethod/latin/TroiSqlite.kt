@@ -77,6 +77,7 @@ private const val FULL_WORD_MULTIPLIER = 2
 private const val CONTEXT_LENGTH_MULTIPLIER = 10
 private const val DATABASE_FILE_NAME = "literatim.sqlite"
 private const val ASSET_FILE = "sqlite/$DATABASE_FILE_NAME"
+private const val MAX_SCORE = 2*22
 // Equivalent to ngram.py -> PHRASE_SEPARATOR. Used to split context into phrases
 private val PHRASE_SEPARATOR = Regex("(?:-+(?!\\w)|(?<!\\w)-+|[^-\\w'’\\s]|\\S*[0-9]+\\S*)+")
 
@@ -277,7 +278,7 @@ object TroiSqliteIME {
 
             // Second query for cross_wordforms - only if nextword has at least 2 chars
             if (nextword.isNotEmpty() && nextword.length >= 2) {
-                sql = """SELECT n.wordform, cw.score + n.score as cmb_score 
+                sql = """SELECT n.wordform, cast(n.score as real) * cw.score as cmb_score 
                         FROM cross_wordforms cw 
                         INNER JOIN ngrams n ON cw.wordform=n.wordform 
                         WHERE context=?"""
@@ -302,10 +303,9 @@ object TroiSqliteIME {
                 cursor2.use {
                     while (it.moveToNext()) {
                         val wordform = it.getString(0)
-                        val score = it.getInt(1)
                         val contextLength = -(context.size + 1) // +1  since context may be [] by the end
-                        // Change from IME - here we *multiply* by the context Length since we want to account for longer sentence formations having higher matches
-                        val currentValue = Pair(contextLength, score * -contextLength * CONTEXT_LENGTH_MULTIPLIER)
+                        val score = it.getInt(1) / MAX_SCORE * 0.5 * (wordform.length - nextword.length) * contextLength * CONTEXT_LENGTH_MULTIPLIER
+                        val currentValue = Pair(contextLength, score)
                         nextWordScores[wordform] = maxOf(
                             currentValue,
                             nextWordScores[wordform] ?: currentValue
