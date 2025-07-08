@@ -66,10 +66,13 @@ private val languageContribs: List<String> = listOf(
     "abb128 (lt, ru)",
     "Witek (pl)",
     "Lucas (pt-BR)",
+    "Patrick Robertson (cy)"
 )
 
 @Suppress("HardCodedStringLiteral")
 private val codeContribs: List<String> = listOf(
+    "David Chan",
+    "Patrick Robertson",
     "venkatesh2090",
     "s-h-a-d-o-w",
     "sapradhan",

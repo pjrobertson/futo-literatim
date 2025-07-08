@@ -191,6 +191,7 @@ public class LanguageModelFacilitator(
     private suspend fun getSuggestionsFromTroiSqlite(values: PredictionInputValues): ArrayList<SuggestedWordInfo>? {
 
         try {
+            // TODO: slightly wasteful to run initialize check every time
             TroiSqliteIME.initialize(context)
             val results = TroiSqliteIME.getSuggestions(
                 values.composedData,
@@ -216,13 +217,13 @@ public class LanguageModelFacilitator(
                 }
             }
             return suggestions;
-        }catch (e: IllegalStateException) {
+        } catch (e: Exception) {
             Log.e("LanguageModelFacilitator", "Error getting suggestions from TroiSqlite: ${e.message}")
             e.printStackTrace()
             withContext(Dispatchers.Main) {
                 Toast.makeText(
                     context,
-                    "Unable to load Troi database, it may be corrupted or unsupported.",
+                    "Unable to load Troi database, it may be corrupted or unsupported. Only basic predictive text will be available.",
                     Toast.LENGTH_LONG
                 ).show()
                 transformerDisabled = true

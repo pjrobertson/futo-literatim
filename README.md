@@ -1,10 +1,7 @@
 # LiteratIM Keyboard
 
-The goal is to make a good modern keyboard that stays offline and doesn't spy on you. This keyboard is a fork of [LatinIME, The Android Open-Source Keyboard](https://android.googlesource.com/platform/packages/inputmethods/LatinIME), with significant changes made to it.
+LiteratIM is an Android Keyboard for use in bilingual contexts. See http://troi.org/en/literatim for more information.
 
-Check out the [LiteratIM Keyboard website](https://keyboard.futo.org/) for downloads and more information.
-
-The code is licensed under the [FUTO Source First License 1.1](LICENSE.md).
 
 ## Issue tracking and PRs
 
@@ -84,3 +81,11 @@ After creating your sqlite file, copy it to `java/assets/sqlite/literatim.sqlite
 ## Testing
 
 **Futo tests** - You can run things like `./gradlew connectedAndroidTest` to run test (see all tests with `./gradlew tasks`). However tests seem to be failing right now
+
+
+## Notice & License
+
+LiteratIM Keyboard is a modified version of FUTO keyboard, a keyboard app created by FUTO with the goal of making a good modern keyboard that stays offline and doesn't spy on you. That keyboard is a fork of [LatinIME, The Android Open-Source Keyboard](https://android.googlesource.com/platform/packages/inputmethods/LatinIME), with significant changes made to it.
+
+
+The FUTO code in this repositor is licensed under the [FUTO Source First License 1.1](LICENSE.md). Additional code created by Patrick Robertson and David Chan are licensed under the [Apache License 2.0](LICENSE_LITERATIM).

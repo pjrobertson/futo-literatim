@@ -14,8 +14,15 @@ typealias TP = ThirdPartyItem
 @Suppress("HardCodedStringLiteral")
 val ThirdPartyList: List<ThirdPartyItem> = listOf(
     TP(
+        "FUTO",
+        "Keyboard Based on FUTO Keyboard",
+        "https://gitlab.futo.org/keyboard/latinime",
+        "Copyright (c) 2023 FUTO Holdings, Inc.",
+        License.FUTO
+    ),
+    TP(
         "AOSP LatinIME",
-        "Keyboard based on AOSP LatinIME",
+        "FUTO Keyboard based on AOSP LatinIME",
         "https://android.googlesource.com/platform/packages/inputmethods/LatinIME/",
         "Copyright (c) 2011 The Android Open Source Project",
         License.Apache2
