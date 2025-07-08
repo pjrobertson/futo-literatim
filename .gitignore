@@ -9,4 +9,3 @@ crashreporting.properties
 keystore.properties
 key.jks
 .DS_Store
-java/assets/sqlite/literatim.sqlite
