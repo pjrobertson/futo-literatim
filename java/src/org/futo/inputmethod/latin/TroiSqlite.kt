@@ -305,7 +305,7 @@ object TroiSqliteIME {
                         val wordform = it.getString(0)
                         val contextLength = -(context.size + 1) // +1  since context may be [] by the end
                         val score = it.getInt(1) / MAX_SCORE * 0.5 * (wordform.length - nextword.length) * contextLength * CONTEXT_LENGTH_MULTIPLIER
-                        val currentValue = Pair(contextLength, score)
+                        val currentValue = Pair(contextLength, score.toInt())
                         nextWordScores[wordform] = maxOf(
                             currentValue,
                             nextWordScores[wordform] ?: currentValue
