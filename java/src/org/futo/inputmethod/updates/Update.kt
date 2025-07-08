@@ -147,7 +147,7 @@ val dismissedMigrateUpdateNotice = SettingsKey(
 fun ConditionalMigrateUpdateNotice() {
     val context = LocalContext.current
     val value = useDataStore(dismissedMigrateUpdateNotice, blocking = true)
-    if(!value.value) {
+    if(false && !value.value) {
         PaymentSurface(isPrimary = true) {
             PaymentSurfaceHeading(stringResource(R.string.manual_update_notice_title))
 
