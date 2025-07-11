@@ -2,8 +2,9 @@ package org.futo.inputmethod.latin
 import org.futo.inputmethod.latin.common.ComposedData
 import org.futo.inputmethod.keyboard.KeyDetector
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.content.Context
-import android.util.Log
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
@@ -188,13 +189,22 @@ object TroiSqliteIME {
     }
 
 
-    fun getSuggestions(composedData: ComposedData, ngramContext: NgramContext, keyDetector: KeyDetector): List<WordPrediction> {
+    suspend fun getSuggestions(composedData: ComposedData, ngramContext: NgramContext, keyDetector: KeyDetector): List<WordPrediction> {
         if (!isInitialized) {
             throw IllegalStateException("TroiSqliteIME not initialized. Call initialize() first.")
         }
 
         // the following closely follows LanguageModel.kt -> getSuggestions() to get the context, then split it on ' ' to pass to predict()
-        val composeInfo = getComposeInfo(composedData, keyDetector)
+        val composeInfo = withContext(Dispatchers.Main) {
+            getComposeInfo(composedData, keyDetector)
+        }
+
+        // Disable gesture for now (same as LanguageModel.kt implementation)
+        // swipe gestures support is currently built into BinaryDictionary at low level cpp code
+        if(composedData.mIsBatchMode) {
+            return emptyList()
+        }
+
         val context = getContext(composeInfo, ngramContext)
         // context can be very long (includes everything written, only consider new sentences /
         var ngram = context.split(PHRASE_SEPARATOR).last().split(" ").toTypedArray()
