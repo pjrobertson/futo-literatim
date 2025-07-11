@@ -14,6 +14,13 @@ typealias TP = ThirdPartyItem
 @Suppress("HardCodedStringLiteral")
 val ThirdPartyList: List<ThirdPartyItem> = listOf(
     TP(
+        "Hunspell CY",
+        "Fersiwn Cymraeg o wirydd sillafu Hunspell / Welsh version of the Hunspell spellchecker",
+        "https://github.com/techiaith/hunspell-cy/tree/master",
+        "Copyright (c) 2004-2025, Troi & Prifysgol Bangor",
+        License.HUNSPELL
+        ),
+    TP(
         "FUTO",
         "Keyboard Based on FUTO Keyboard",
         "https://gitlab.futo.org/keyboard/latinime",
