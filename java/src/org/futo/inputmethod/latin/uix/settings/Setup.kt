@@ -1,5 +1,6 @@
 package org.futo.inputmethod.latin.uix.settings
 
+import WelshFlag
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -41,6 +43,7 @@ import org.futo.inputmethod.latin.uix.KeyboardLayoutPreview
 import org.futo.inputmethod.latin.uix.USE_SYSTEM_VOICE_INPUT
 import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.v2keyboard.LayoutManager
+
 
 @Composable
 fun SetupContainer(inner: @Composable () -> Unit) {
@@ -77,6 +80,7 @@ fun SetupContainer(inner: @Composable () -> Unit) {
         }
 
         Spacer(modifier = Modifier.weight(0.25f))
+        WelshFlag()
     }
 }
 

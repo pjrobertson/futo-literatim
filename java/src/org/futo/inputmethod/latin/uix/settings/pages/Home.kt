@@ -1,5 +1,6 @@
 package org.futo.inputmethod.latin.uix.settings.pages
 
+import WelshFlag
 import android.content.Intent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -205,6 +206,7 @@ fun HomeScreen(navController: NavHostController = rememberNavController()) {
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(32.dp))
+            WelshFlag()
         }
         TextButton(onClick = {
             val intent = Intent()
