@@ -201,9 +201,9 @@
 
     <!-- Payment screen -->
     <string name="payment_screen_short_title">Payment</string>
-    <string name="payment_screen_title">Pay for LiteratIM Keyboard</string>
-    <string name="payment_screen_sales_paragraph_1">You\'ve been using LiteratIM Keyboard for <xliff:g name="days" example="30">%d</xliff:g> days. If you find this app useful, please consider paying to support future development of FUTO software.</string>
-    <string name="payment_screen_sales_paragraph_1_alt">Thank you for trying out LiteratIM Keyboard! If you find this app useful, please consider paying to support future development of FUTO software.</string>
+    <string name="payment_screen_title">Pay for FUTO Keyboard</string>
+    <string name="payment_screen_sales_paragraph_1">You\'ve been using FUTO Keyboard for <xliff:g name="days" example="30">%d</xliff:g> days. If you find this app useful, please consider paying to support future development of FUTO software.</string>
+    <string name="payment_screen_sales_paragraph_1_alt">Thank you for trying out FUTO Keyboard! If you find this app useful, please consider paying to support future development of FUTO software.</string>
     <string name="payment_screen_sales_paragraph_2">FUTO is dedicated to making good software that doesn\'t abuse you. This app will never serve you ads or collect your personal data.</string>
     <string name="payment_screen_sales_point_development_title">Sustainable Development</string>
     <string name="payment_screen_sales_point_development_body">FUTO\'s mission is for open-source software and non-malicious software business practices to become a sustainable income source for projects and their developers. For this reason, we are in favor of users actually paying for software.</string>
@@ -211,7 +211,7 @@
     <string name="payment_screen_sales_point_privacy_body">This app will never serve you ads or sell your data. We are not in the business of doing that.</string>
     <string name="payment_screen_error_build_unsupported_payment">Payment is unsupported on this build</string>
     <string name="payment_screen_already_paid_title">Already paid?</string>
-    <string name="payment_screen_already_paid_body">If you already paid for LiteratIM Keyboard or FUTO Voice Input, tap below.</string>
+    <string name="payment_screen_already_paid_body">If you already paid for FUTO Keyboard or FUTO Voice Input, tap below.</string>
     <string name="payment_screen_already_paid_button">I already paid</string>
     <string name="payment_screen_already_paid_confirmation">Confirm your choice</string>
     <string name="payment_screen_already_paid_confirmation_body">Are you sure you want to confirm you already paid? Once confirmed, you won\'t be asked about paying again.</string>
@@ -236,8 +236,8 @@
     <string name="payment_screen_payment_complete_title">Payment Complete</string>
     <string name="payment_screen_aftersales_title">Thank you</string>
     <string name="payment_screen_aftersales_title_pending">Payment Pending</string>
-    <string name="payment_screen_aftersales_paragraph_1">Thank you for purchasing LiteratIM Keyboard!</string>
-    <string name="payment_screen_aftersales_paragraph_2">Your purchase will help continued development of LiteratIM Keyboard, and other FUTO projects.</string>
+    <string name="payment_screen_aftersales_paragraph_1">Thank you for purchasing FUTO Keyboard!</string>
+    <string name="payment_screen_aftersales_paragraph_2">Your purchase will help continued development of FUTO Keyboard, and other FUTO projects.</string>
     <string name="payment_screen_aftersales_paragraph_2_pending">Your payment is still pending, but it should clear soon.</string>
     <string name="payment_screen_aftersales_paragraph_3">If you just paid, your payment may still be processing, you should get an email with more information.</string>
     <string name="payment_screen_payment_failed_title">Payment Error</string>
@@ -246,9 +246,9 @@
     <string name="payment_screen_license_integrity_error">Failed to verify license. If you believe this to be an error, please contact us.</string>
     <string name="payment_screen_continue_button">Continue</string>
 
-    <string name="payment_unpaid_version_title">Unpaid LiteratIM Keyboard</string>
+    <string name="payment_unpaid_version_title">Unpaid FUTO Keyboard</string>
     <string name="payment_unpaid_version_indicator">Unpaid</string>
-    <string name="payment_paid_version_indicator">Thank you for using the paid version of LiteratIM Keyboard!</string>
+    <string name="payment_paid_version_indicator">Thank you for using the paid version of FUTO Keyboard!</string>
 
 
     <!-- Lack of automatic updates notice -->
