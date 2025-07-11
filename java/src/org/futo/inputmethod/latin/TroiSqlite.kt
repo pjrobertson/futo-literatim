@@ -99,7 +99,7 @@ object TroiSqliteIME {
     private var db: SupportSQLiteDatabase? = null
     private val predictions = mutableListOf<WordPrediction>()
     private var isInitialized = false
-
+    private var zeroContextResults: List<WordPrediction>? = null
     /**
      * Initialize the singleton with application context
      * Call this once during app startup
@@ -229,13 +229,28 @@ object TroiSqliteIME {
         }
 
         val context = getContext(composeInfo, ngramContext)
-        // context can be very long (includes everything written, only consider new sentences /
-        var ngram = context.split(PHRASE_SEPARATOR).last().split(" ").toTypedArray()
-        // add composeInfo.partialWord -> even if it's empty, that way we get ["fy", "enw", ""] signifying new word
-        ngram += composeInfo.partialWord
+        // context can be very long (includes everything written, only consider new sentences / phrases
+        // take LOWERCASE - for better searching/matching
+        // REMOVE any empty strings from the split (cases where user typed multiple spaces)
+        var ngram = context.split(PHRASE_SEPARATOR).last().lowercase().split(" ").filter { it.isNotEmpty() }.toTypedArray()
 
-        // only really ever need 3 predictions
-        return predict(ngram, maxRows = 5)
+        // optimisation for case where ngram is empty and word being typed is also empty -> this is a slow query in sql so we cache the result
+        if (ngram.isEmpty() && composeInfo.partialWord.isEmpty()) {
+            // if we have already cached the zero context results, return them
+            if (zeroContextResults != null) {
+                return zeroContextResults!!
+            }
+            // otherwise, we need to query the database for zero context results
+            val results = predict(arrayOf(""), maxRows = 4)
+            zeroContextResults = results
+            return results
+        }
+
+        // add composeInfo.partialWord -> even if it's empty, that way we get ["fy", "enw", ""] signifying new word
+        ngram += composeInfo.partialWord.lowercase()
+
+        // take up to 8 predictions, then we will rescore them based on 'distance
+        return predict(ngram, maxRows = 8)
 
     }
 
