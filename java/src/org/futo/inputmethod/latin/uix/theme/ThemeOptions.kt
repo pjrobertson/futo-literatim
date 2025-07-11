@@ -24,7 +24,8 @@ import org.futo.inputmethod.latin.uix.theme.presets.Sunflower
 import org.futo.inputmethod.latin.uix.theme.presets.VoiceInputTheme
 import org.futo.inputmethod.latin.uix.theme.presets.DevTheme
 import org.futo.inputmethod.latin.uix.theme.presets.HighContrastYellow
-import org.futo.inputmethod.latin.uix.theme.presets.WelshTheme
+import org.futo.inputmethod.latin.uix.theme.presets.WelshThemeDark
+import org.futo.inputmethod.latin.uix.theme.presets.WelshThemeLight
 
 data class ThemeOption(
     val dynamic: Boolean,
@@ -37,6 +38,9 @@ data class ThemeOption(
 val ThemeOptions = mapOf(
     DefaultDarkScheme.key to DefaultDarkScheme,
     DefaultLightScheme.key to DefaultLightScheme,
+
+    WelshThemeLight.key to WelshThemeLight,
+    WelshThemeDark.key to WelshThemeDark,
 
     DynamicSystemTheme.key to DynamicSystemTheme,
     DynamicDarkTheme.key to DynamicDarkTheme,
@@ -59,9 +63,7 @@ val ThemeOptions = mapOf(
     VoiceInputTheme.key to VoiceInputTheme,
     HotDog.key to HotDog,
     DevTheme.key to DevTheme,
-    HighContrastYellow.key to HighContrastYellow,
-
-    WelshTheme.key to WelshTheme,
+    HighContrastYellow.key to HighContrastYellow
 )
 
 val ThemeOptionKeys = ThemeOptions.keys
@@ -70,7 +72,10 @@ fun defaultThemeOption(context: Context): ThemeOption =
     if(context.resources.getBoolean(R.bool.use_dev_styling)) {
         DevTheme
     } else {
-        if(DynamicSystemTheme.available(context)) {
+        if (true) {
+            WelshThemeLight
+        }
+        else if(DynamicSystemTheme.available(context)) {
             DynamicSystemTheme
         } else {
             DefaultDarkScheme

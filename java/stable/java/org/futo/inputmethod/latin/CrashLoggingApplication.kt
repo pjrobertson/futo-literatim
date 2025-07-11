@@ -51,7 +51,7 @@ class CrashLoggingApplication : Application(), Configuration.Provider {
                 //    }
                 //} else {
                 mailSender {
-                    mailTo = "keyboard@futo.org"
+                    mailTo = "troi@troi.org"
                     reportAsFile = true
                     reportFileName = "Crash.txt"
                     subject = "Keyboard Crash Report"
