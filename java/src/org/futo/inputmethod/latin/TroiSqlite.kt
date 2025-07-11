@@ -84,7 +84,8 @@ private const val FULL_WORD_MULTIPLIER = 2
 private const val CONTEXT_LENGTH_MULTIPLIER = 10
 private const val DATABASE_FILE_NAME = "literatim.sqlite"
 private const val ASSET_FILE = "sqlite/$DATABASE_FILE_NAME"
-private const val MAX_SCORE = 2*22
+
+private const val MAX_SCORE = 4194304 // 2**22 -> but kotlin doesn't like that
 // Equivalent to ngram.py -> PHRASE_SEPARATOR. Used to split context into phrases
 private val PHRASE_SEPARATOR = Regex("(?:-+(?!\\w)|(?<!\\w)-+|[^-\\w'’\\s]|\\S*[0-9]+\\S*)+")
 
