@@ -2,6 +2,7 @@ package org.futo.inputmethod.latin.xlm;
 
 import android.content.Context
 import android.util.Log
+import java.util.Locale
 import android.widget.Toast
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.lifecycle.LifecycleCoroutineScope
@@ -42,7 +43,7 @@ import org.futo.inputmethod.latin.utils.SuggestionResults
 import kotlin.math.ceil
 
 import org.futo.inputmethod.latin.TroiSqliteIME
-
+import org.futo.inputmethod.latin.common.StringUtils
 
 
 val AutocorrectThresholdSetting = SettingsKey(
@@ -188,7 +189,7 @@ public class LanguageModelFacilitator(
         return true
     }
 
-    private suspend fun getSuggestionsFromTroiSqlite(values: PredictionInputValues): ArrayList<SuggestedWordInfo>? {
+    private suspend fun getSuggestionsFromTroiSqlite(values: PredictionInputValues, locale: Locale): ArrayList<SuggestedWordInfo>? {
 
         try {
             // TODO: slightly wasteful to run initialize check every time
@@ -203,17 +204,32 @@ public class LanguageModelFacilitator(
             // Convert results (ArrayList<WordPrediction>) to ArrayList<SuggestedWordInfo>
             val suggestions = ArrayList<SuggestedWordInfo>().apply {
                 for ((i, prediction) in results.withIndex()) {
-                add(
-                    SuggestedWordInfo(
-                    prediction.wordform,
-                    "",
-                    prediction.score,
-                    SuggestedWordInfo.KIND_WHITELIST,
-                    null,
-                    0,
-                    0
+                    val typedWord = values.composedData.mTypedWord;
+                    var transformedWord = prediction.wordform;
+                    if (typedWord.isNotEmpty()) {
+                        val isAllUpperCase = typedWord.length > 1 && typedWord.all { it.isUpperCase() }
+                        val isOnlyFirstCharCapitalized = values.composedData.mTypedWord.first()
+                                .isUpperCase() && values.composedData.mTypedWord.drop(1)
+                                .all { it.isLowerCase() }
+                        if (isAllUpperCase) {
+                            transformedWord = transformedWord.uppercase(locale)
+                        } else if (isOnlyFirstCharCapitalized) {
+                            transformedWord =
+                                StringUtils.capitalizeFirstCodePoint(transformedWord, locale);
+                        }
+                    }
+                    
+                    add(
+                        SuggestedWordInfo(
+                        transformedWord,
+                        "",
+                        prediction.score.toInt(),
+                        SuggestedWordInfo.KIND_WHITELIST,
+                        null,
+                        0,
+                        0
+                        )
                     )
-                )
                 }
             }
             return suggestions;
@@ -243,7 +259,7 @@ public class LanguageModelFacilitator(
 
         // TODO: improve hard coding of cy locale here. E.g. could check if the locale supports the TroiSqlite format
         if (locale.language == "cy") {
-            return getSuggestionsFromTroiSqlite(values)
+            return getSuggestionsFromTroiSqlite(values, locale)
         }
 
         if ((languageModel == null && locale.language != skipLanguage) || (languageModel != null && languageModel?.locale?.language != locale.language)) {
