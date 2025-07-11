@@ -82,6 +82,40 @@ tasks.register('updateLocales', Exec) {
     ]
 }
 
+tasks.register('generateSqliteVersion') {
+    description = "Generate version.txt with the PRAGMA user_version of literatim.sqlite"
+    group = "build"
+
+    def inputFile = file("${projectDir}/java/assets/sqlite/literatim.sqlite")
+    def outputFile = file("${projectDir}/java/assets/sqlite/version.txt")
+
+    inputs.file(inputFile)
+    outputs.file(outputFile)
+
+    doLast {
+        if (!inputFile.exists()) {
+            throw new GradleException("literatim.sqlite does not exist at ${inputFile} - make sure you copied it!!")
+        }
+        def userVersion = -1
+        def sql = "PRAGMA user_version;"
+        def command = [
+            "sqlite3",
+            inputFile.absolutePath,
+            sql
+        ]
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine command
+            standardOutput = stdout
+        }
+        userVersion = stdout.toString().trim()
+        outputFile.text = "${userVersion}"
+        println "Wrote user_version=${userVersion} to ${outputFile}"
+    }
+}
+
+preBuild.dependsOn generateSqliteVersion
+
 preBuild.dependsOn updateLocales
 
 android {
