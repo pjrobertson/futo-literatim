@@ -10,6 +10,7 @@ import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 
 import java.io.File
+import kotlin.math.pow
 
 /**
  * TroiSqliteIME - Predictive Text Engine for Welsh Language Input (Singleton)
@@ -172,6 +173,36 @@ object TroiSqliteIME {
     }
 
 
+    /**
+    * Calculates the number of matched characters between two words
+    * Characters are matched based on their frequency in each word
+    * 
+    * @param word1 First word to compare
+    * @param word2 Second word to compare
+    * @return Number of matched characters
+    */
+    fun countMatchedCharacters(word1: String, word2: String): Int {
+        if (word1.length < word2.length) {
+            // we want to check the longer word for presence of letters in the shorter word
+            return countMatchedCharacters(word2, word1)
+        }
+        // Convert to lowercase for case-insensitive comparison
+        val w1 = word1.lowercase()
+        var w2 = word2.lowercase()
+
+        // Iterate through w1 and count how many characters from w2 are present, removing that character from w2 then continuing
+        var matchedCount = 0
+        for (c in w1) {
+            val index = w2.indexOf(c)
+            if (index >= 0) {
+                matchedCount++
+                // Remove the character from w2 to prevent double counting
+                w2 = w2.removeRange(index, index + 1)
+            }
+        }
+        return matchedCount
+    }
+
     private fun getContext(composeInfo: ComposeInfo, ngramContext: NgramContext): String {
         // Copied from LanguageModel.kt -> getContext()
         var context = ngramContext.extractPrevWordsContext()
@@ -265,7 +296,7 @@ object TroiSqliteIME {
         
         val currentDb = db ?: return emptyList()
         
-        val nextWordScores = mutableMapOf<String, Pair<Int, Int>>()
+        val nextWordScores = mutableMapOf<String, Int>()
 
         // nextword either empty (start of a word) or the last word in ngram
         val nextword = ngram.lastOrNull() ?: ""
@@ -288,14 +319,28 @@ object TroiSqliteIME {
 
         while (true) {
             val limit = maxRows - nextWordScores.size
-            var sql = "SELECT wordform, score FROM ngrams WHERE context=?"
-            val args = mutableListOf<Any>()
-            args.add(context.joinToString(" "))
+            var sql = """
+                SELECT wordform, 
+                       MAX(context_length) as context_length,
+                       MAX(final_score) * exact_match_priority as final_score,
+                       lookup_wordform
+                FROM (
+                    -- Direct ngram predictions
+                    SELECT wordform, 
+                           ? as context_length,
+                           score as final_score,
+                           case when wordform=? then 100.0 else 1.0 end as exact_match_priority,
+                           -- this is set to '0' since we're not going to give penalties on wordform_length for ngram cases 
+                           -- (see cross_wordforms sub select for how we use it there)
+                           "" as lookup_wordform
+                    FROM ngrams 
+                    WHERE context=?""".trimIndent()
+            val args = mutableListOf<Any>(context.size, nextword, context.joinToString(" ").trim())
 
             if (nextword.isNotEmpty()) {
                 sql += " AND (false"
                 for (spelling in spellings) {
-                    sql += " OR wordform GLOB ?||'*'"
+                    sql += " OR wordform GLOB ?||'*' "
                     args.add(spelling)
                     if (spelling.length >= 3) {
                         for (wildcard in buildWildcards(spelling, first_x_chars = 8)) {
@@ -305,92 +350,81 @@ object TroiSqliteIME {
                     }
                 }
                 sql += ")"
-                sql += " ORDER BY CASE WHEN wordform=? THEN 0 ELSE 1 END, score DESC"
-                args.add(nextword)
-            } else {
-                sql += " ORDER BY score DESC"
             }
-            sql += " LIMIT ?"
+            // Add cross-wordform predictions if nextword is long enough
+            if (nextword.isNotEmpty() && nextword.length >= 2) {
+                sql += """
+                    
+                    UNION ALL
+                    -- Cross-wordform predictions
+                    SELECT n.wordform,
+                           ? as context_length,
+                           (cast(n.score as real) * cw.score / ?) as final_score,
+                           case when cw.cross_wordform=? then 100.0 else 1.0 end as exact_match_priority,
+                           cw.cross_wordform as lookup_wordform
+                    FROM cross_wordforms cw 
+                    INNER JOIN ngrams n ON cw.wordform=n.wordform 
+                    WHERE n.context=?
+                    AND cw.cross_wordform glob ?||'*' """.trimIndent()
+                
+                args.addAll(listOf(context.size, MAX_SCORE/100.0, nextword, context.joinToString(" ").trim(), nextword))
+            }
+            
+            sql += """
+                ) combined_results
+                GROUP BY wordform
+                ORDER BY context_length DESC, 
+                         MAX(exact_match_priority) DESC, 
+                         final_score DESC,
+                         wordform ASC
+                LIMIT ?""".trimIndent()
+            
             args.add(limit)
+
 
             val cursor = currentDb.query(sql, args.toTypedArray())
             cursor.use {
                 while (it.moveToNext()) {
                     val wordform = it.getString(0)
-                    val score = it.getInt(1)
-                    val contextLength = -(context.size + 1) // +1  since context may be [] by the end
-                    val currentValue = Pair(contextLength, score * -contextLength * CONTEXT_LENGTH_MULTIPLIER)
-                    nextWordScores[wordform] = minOf(
-                        currentValue,
-                        nextWordScores[wordform] ?: currentValue
-                    ) { a, b ->
-                        when {
-                            a.first != b.first -> a.first.compareTo(b.first)
-                            else -> a.second.compareTo(b.second)
+                    // don't need to get this from the cursor, since we already know it
+                    // val contextLength = it.getInt(1)
+                    var score = it.getFloat(2)
+                    val lookupWordform = it.getString(3)
+                    
+                    // Apply length penalty *only* for cross-wordform predictions (when lookupWordform is not empty)
+                    if (lookupWordform.isNotEmpty() && nextword.isNotEmpty()) {
+                        // find total matched characters between lookupWordform and nextword
+                        val matchedCharCount = countMatchedCharacters(lookupWordform, nextword)
+                        if (matchedCharCount > 0) {
+                            // Apply 0.5^Number of non-matched characters penalty
+                            val penalty = 0.5.pow(lookupWordform.length - matchedCharCount).toFloat()
+                            score *= penalty
                         }
                     }
+                    
+                    val combinedScore = (context.size shl 25) or score.toInt()
+                    val currentScore = nextWordScores[wordform]
+
+                    nextWordScores[wordform] = (if (currentScore == null) {
+                        combinedScore
+                    } else {
+                        maxOf(currentScore, combinedScore)
+                    })
                 }
             }
 
-            // Second query for cross_wordforms - only if nextword has at least 2 chars
-            if (nextword.isNotEmpty() && nextword.length >= 2) {
-                sql = """SELECT n.wordform, cast(n.score as real) * cw.score as cmb_score 
-                        FROM cross_wordforms cw 
-                        INNER JOIN ngrams n ON cw.wordform=n.wordform 
-                        WHERE context=?"""
-                args.clear()
-                args.add(context.joinToString(" "))
-                
-                sql += " AND (false"
-                sql += " OR cw.cross_wordform GLOB ?||'*'"
-                args.add(nextword)
-                
-                for (wildcard in buildWildcards(nextword)) {
-                    sql += " OR cross_wordform GLOB ?||'*'"
-                    args.add(wildcard)
-                }
-                sql += ")"
-                sql += " ORDER BY CASE WHEN cross_wordform=? THEN 0 ELSE 1 END, cmb_score DESC"
-                args.add(nextword)
-                sql += " LIMIT ?"
-                args.add(limit)
-
-                val cursor2 = currentDb.query(sql, args.toTypedArray())
-                cursor2.use {
-                    while (it.moveToNext()) {
-                        val wordform = it.getString(0)
-                        val contextLength = -(context.size + 1) // +1  since context may be [] by the end
-                        val score = it.getInt(1) / MAX_SCORE * 0.5 * (wordform.length - nextword.length) * contextLength * CONTEXT_LENGTH_MULTIPLIER
-                        val currentValue = Pair(contextLength, score.toInt())
-                        nextWordScores[wordform] = maxOf(
-                            currentValue,
-                            nextWordScores[wordform] ?: currentValue
-                        ) { a, b ->
-                            when {
-                                a.first != b.first -> a.first.compareTo(b.first)
-                                else -> a.second.compareTo(b.second)
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (nextWordScores.size >= maxRows) {
-                break
-            }
-            if (context.isEmpty()) {
-                break
-            }
+            // If we have enough predictions, break
+            if (nextWordScores.size >= maxRows) break
+            // If we have no more context, break
+            if (context.isEmpty()) break
+            // Remove the last word from context to continue searching
             context = context.drop(1)
         }
 
-        // Sort by <exact match>, score
+        // NOTE: sorting not required here, that happens later on once troi vals and BinaryDict vals are merged
         return nextWordScores.entries
-            .sortedWith(compareBy<Map.Entry<String, Pair<Int, Int>>> 
-                { it.value.first }.thenByDescending { it.value.second }.thenBy { it.key })
-            .take(maxRows)
             // multiply by FULL_WORD_MULTIPLIER = 2 for exact match -> see FULL_WORD_MULTIPLIER constant in autocorrection_threshold_utils.cpp
-            .map { WordPrediction(it.key, it.value.second ) }
+            .map { WordPrediction(it.key, it.value ) }
     }
 
     /**
