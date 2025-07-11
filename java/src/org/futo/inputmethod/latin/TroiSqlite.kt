@@ -57,10 +57,17 @@ data class ComposeInfo(
 /**
  * Builds wildcard patterns for fuzzy matching by inserting '?' at various positions
  */
-private fun buildWildcards(s: String): List<String> {
+private fun buildWildcards(s: String, first_x_chars: Int = -1): List<String> {
     val blanks = mutableListOf<String>()
-    for (i in 1 until s.length - 1) {
-        blanks.add(s.substring(0, i) + "?" + s.substring(i))
+    val clippedString = if (first_x_chars > 0 && first_x_chars <= s.length) {
+        s.substring(0, first_x_chars)
+    } else {
+        s
+    }
+    // Insert '?' at each position except the first and last character
+    for (i in 1 until clippedString.length - 1) {
+        val wildcard = clippedString.substring(0, i) + "?" + clippedString.substring(i)
+        blanks.add(wildcard)
     }
     return blanks
 }
@@ -242,8 +249,8 @@ object TroiSqliteIME {
                     sql += " OR wordform GLOB ?||'*'"
                     args.add(spelling)
                     if (spelling.length >= 3) {
-                        for (wildcard in buildWildcards(spelling)) {
-                            sql += " OR wordform GLOB ?||'*'"
+                        for (wildcard in buildWildcards(spelling, first_x_chars = 8)) {
+                            sql += " OR wordform GLOB ?||'*' "
                             args.add(wildcard)
                         }
                     }
