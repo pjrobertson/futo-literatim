@@ -85,6 +85,7 @@ private const val FULL_WORD_MULTIPLIER = 2
 private const val CONTEXT_LENGTH_MULTIPLIER = 10
 private const val DATABASE_FILE_NAME = "literatim.sqlite"
 private const val ASSET_FILE = "sqlite/$DATABASE_FILE_NAME"
+private const val VERSION_FILE = "sqlite/version.txt"
 
 private const val MAX_SCORE = 4194304 // 2**22 -> but kotlin doesn't like that
 // Equivalent to ngram.py -> PHRASE_SEPARATOR. Used to split context into phrases
@@ -111,43 +112,65 @@ object TroiSqliteIME {
         }
     }
 
-    private fun initializeDatabase(context: Context) {
-        val dbFile = File(context.filesDir, DATABASE_FILE_NAME)
-        
-
-        // check the database file exists, if not copy it from literatim.zip in assets folder to the files directory
-        if (!dbFile.exists()) {
-            // Copy the .sqlite file directly from assets to the files directory
-            context.assets.open(ASSET_FILE).use { inputStream ->
-                dbFile.outputStream().use { outputStream ->
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    while (inputStream.read(buffer).also { bytesRead = it } > 0) {
-                        outputStream.write(buffer, 0, bytesRead)
-                    }
+    private fun copyFile(context: Context, dbFile: File) {
+        context.assets.open(ASSET_FILE).use { inputStream ->
+            dbFile.outputStream().use { outputStream ->
+                val buffer = ByteArray(8192)
+                var bytesRead: Int
+                while (inputStream.read(buffer).also { bytesRead = it } > 0) {
+                    outputStream.write(buffer, 0, bytesRead)
                 }
             }
         }
-        
+    }
+
+    private fun loadDatabase(context: Context, dbFile: File, version: Int) {
         val factory = FrameworkSQLiteOpenHelperFactory()
         val helper = factory.create(
             SupportSQLiteOpenHelper.Configuration.builder(context)
                 .name(dbFile.absolutePath)
-                .callback(object : SupportSQLiteOpenHelper.Callback(1) {
+                .callback(object : SupportSQLiteOpenHelper.Callback(version) {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         // Database should already exist from assets
                     }
 
                     override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
-                        // Handle upgrades if needed
+                        throw IllegalStateException("Database version mismatch")
                     }
                 })
                 .build()
         )
-        
+
         // Open as read-only since we only need to query
         db = helper.readableDatabase
     }
+    private fun initializeDatabase(context: Context) {
+        val dbFile = File(context.filesDir, DATABASE_FILE_NAME)
+
+        val assetsVersion = context.assets.open(VERSION_FILE).bufferedReader().readText().toInt()
+
+        if (!dbFile.exists()) {
+            // Copy the .sqlite file directly from assets to the files directory if first run
+            copyFile(context, dbFile)
+            loadDatabase(context, dbFile, assetsVersion)
+            return
+        } 
+
+
+        // get the current database version from the app assets folder version.txt
+
+        try {
+            // DB check the current filedDir database version
+            loadDatabase(context, dbFile, assetsVersion)
+        } catch (e: IllegalStateException) {
+            db?.close()
+            dbFile.delete()
+            copyFile(context, dbFile)
+            loadDatabase(context, dbFile, assetsVersion)
+        }
+        
+    }
+
 
     private fun getContext(composeInfo: ComposeInfo, ngramContext: NgramContext): String {
         // Copied from LanguageModel.kt -> getContext()
