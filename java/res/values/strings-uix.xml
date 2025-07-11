@@ -471,6 +471,12 @@
     <string name="theme_settings_key_borders">Key borders</string>
     <string name="dev_settings_title">Developer Settings</string>
 
+    <string name="payment_to_futo_title_cy">Noder: Nid sgrin dalu ar gyfer Bysellfwrdd Cymraeg LiteratIM yw hon</string>
+     <string name="payment_to_futo_title_en">Note: This is not a payment screen for LiteratIM Welsh Keyboard</string>
+    <string name="payment_to_futo_paragraph_cy">\nMae Bysellfwrdd Cymraeg LiteratIM wedi\'i adeiladu ar blatfform bysellfwrdd FUTO. Os ydych chi eisiau cefnogi bysellfwrdd FUTO, gallwch chi dalu FUTO isod. \n\nNid yw Bysellfwrdd Cymraeg LiteratIM yn gofyn am arian ar hyn o bryd.</string>
+    <string name="payment_to_futo_paragraph_en">\nLiteratIM Welsh Keyboard is built on the FUTO Keyboard platform. If you want to support FUTO Keyboard, you may make a payment to FUTO below.\n\nLiteratIM Welsh Keyboard is not currently asking for payments or donations.</string>
+    <string name="payment_email_troi">Ebostio Troi / Email Troi</string>
+
     <!-- Voice input settings menu -->
     <string name="voice_input_settings_title">Voice Input</string>
     <string name="voice_input_settings_builtin_disabled_notice">Built-in voice input is disabled!</string>

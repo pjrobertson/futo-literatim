@@ -476,7 +476,44 @@ fun PaymentScreen(
     val reminderTimeIsUp = (currentTime >= pushReminderTime.value) && ((numDaysInstalled.intValue >= TRIAL_PERIOD_DAYS) || forceShowNotice.value)
 
     ScrollableList {
+
+        val context = LocalContext.current
+
         ScreenTitle(stringResource(R.string.payment_screen_short_title), showBack = true, navController = navController)
+
+        PaymentSurface(isPrimary = true) {
+            PaymentSurfaceHeading(stringResource(R.string.payment_to_futo_title_cy))
+            ParagraphText(stringResource(R.string.payment_to_futo_paragraph_cy))
+
+            androidx.compose.material3.Divider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 1.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            )
+
+            PaymentSurfaceHeading(stringResource(R.string.payment_to_futo_title_en))
+            ParagraphText(stringResource(R.string.payment_to_futo_paragraph_en))
+
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                    onClick = {
+                        context.openURI("mailto:troi@troi.org")
+                    }, colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.outlineVariant
+                    ), modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        stringResource(
+                            R.string.payment_email_troi
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = Typography.Body.Medium
+                    )
+                }
+        }
 
         Spacer(Modifier.height(8.dp))
 
@@ -486,7 +523,6 @@ fun PaymentScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        val context = LocalContext.current
 
         SpacedColumn(32.dp) {
             PaymentSurface(isPrimary = true) {
