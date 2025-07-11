@@ -208,7 +208,8 @@ object Subtypes {
     }
 
     fun getName(inputMethodSubtype: InputMethodSubtype): String {
-        return SubtypeLocaleUtils.getSubtypeDisplayName(inputMethodSubtype, getLocale(inputMethodSubtype))
+        val locale = getLocale(inputMethodSubtype)
+        return getLocaleDisplayName(locale, locale)
     }
 
     fun getNameForLocale(locale: String): String {
@@ -228,6 +229,9 @@ object Subtypes {
     }
 
     fun getLocaleDisplayName(locale: Locale, nameLocale: Locale): String {
+        val definedName = LayoutManager.getExceptionalNameForLocale(locale, nameLocale)
+        if(definedName != null) return definedName
+
         val localeString = locale.toString()
         if(SubtypeLocaleUtils.isExceptionalLocale(localeString)) {
             return SubtypeLocaleUtils.getSubtypeLocaleDisplayNameInternal(localeString, nameLocale)
