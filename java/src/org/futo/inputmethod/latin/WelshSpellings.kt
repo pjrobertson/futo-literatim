@@ -73,11 +73,11 @@ object WelshSpellings {
     /**
      * Generate spelling variants for a Welsh word, returning a new set
      * @param wordform The word form to generate variants for
-     * @param lemma The lemma form of the word
+     * @param lemma The lemma form of the word -> optimised out since we don't use it (IME.py keeps it in)
      * @return Set of spelling variants (mistake -> correct)
      */
-    fun generateSpellings(wordform: String, lemma: String): Set<Pair<String, String>> {
-        val spellings = mutableSetOf<Pair<String, String>>()
+    fun generateSpellings(wordform: String): Set<String> {
+        val spellings = mutableSetOf<String>()
                 val normalizedWordform = removeAccents(wordform).lowercase()
         
         // Generate common variants
@@ -88,18 +88,18 @@ object WelshSpellings {
                 if (matcher.find()) {
                     val mistake = matcher.replaceFirst(replacement)
                     if (mistake != normalizedWordform) {
-                        spellings.add(Pair(mistake, normalizedWordform))
+                        spellings.add(mistake)
                     }
                 }
             }
         }
         
         // Generate deletions
-        val letters = Digraphs.splitWord(normalizedWordform, lemma)
+        val letters = Digraphs.splitWord(normalizedWordform, wordform)
         for (i in 1 until letters.size - 1) {
             val deletion = letters.subList(0, i) + letters.subList(i + 1, letters.size)
             val deletionString = deletion.joinToString("")
-            spellings.add(Pair(deletionString, normalizedWordform))
+            spellings.add(deletionString)
         }
         return spellings
     }

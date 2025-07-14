@@ -97,6 +97,9 @@ private val PHRASE_SEPARATOR = Regex("(?:-+(?!\\w)|(?<!\\w)-+|[^-\\w'’\\s]|\\S
  * Predictive text engine using SQLite n-gram database (Singleton)
  */
 object TroiSqliteIME {
+
+    private val APOSTROPHE_REPLACEMENT = Regex("""(?!:[aeiouy])(i|u|n|m|r|w|ch)$""")
+
     private var db: SupportSQLiteDatabase? = null
     private val predictions = mutableListOf<WordPrediction>()
     private var isInitialized = false
@@ -171,7 +174,6 @@ object TroiSqliteIME {
         }
         
     }
-
 
     /**
     * Calculates the number of matched characters between two words
@@ -305,10 +307,15 @@ object TroiSqliteIME {
         if (nextword.isNotEmpty()) {
             // user has started typing a word, not empty
             // Call to WelshSpellings.generateSpellings() as requested
-            val spellingCorrections = WelshSpellings.generateSpellings(nextword, nextword).toMutableSet()
-            spellingCorrections.add(Pair(nextword, nextword))
-            
-            spellings.addAll(spellingCorrections.map { it.first })
+            val spellingCorrections = WelshSpellings.generateSpellings(nextword)
+            spellings.addAll(spellingCorrections)
+            // add the original nextword to spellings as well
+            spellings.add(nextword)
+            for (spelling in spellingCorrections) {
+                // add wildcard patterns for fuzzy matching
+                val wildcards = buildWildcards(spelling, first_x_chars = 7)
+                spellings.addAll(wildcards)
+            }
         }
 
         var context = if (ngram.size >= 5) {
@@ -316,6 +323,8 @@ object TroiSqliteIME {
         } else {
             ngram.dropLast(1)
         }
+
+        val apostropheReplacement = APOSTROPHE_REPLACEMENT.replace(nextword, "’$1")
 
         while (true) {
             val limit = maxRows - nextWordScores.size
@@ -329,55 +338,56 @@ object TroiSqliteIME {
                     SELECT wordform, 
                            ? as context_length,
                            score as final_score,
-                           case when wordform=? then 100.0 else 1.0 end as exact_match_priority,
+                           case when ? and (wordform=? or wordform=?) then 100 
+                           else 1
+                           end as exact_match_priority,
                            -- this is set to '0' since we're not going to give penalties on wordform_length for ngram cases 
                            -- (see cross_wordforms sub select for how we use it there)
-                           "" as lookup_wordform
+                           wordform as lookup_wordform
                     FROM ngrams 
                     WHERE context=?""".trimIndent()
-            val args = mutableListOf<Any>(context.size, nextword, context.joinToString(" ").trim())
+            val args = mutableListOf<Any>(context.size, nextword.isNotEmpty(), nextword.drop(1), apostropheReplacement.drop(1), context.joinToString(" ").trim())
 
             if (nextword.isNotEmpty()) {
                 sql += " AND (false"
                 for (spelling in spellings) {
-                    sql += " OR wordform GLOB ?||'*' "
+                    sql += " OR wordform GLOB ?||'*'"
                     args.add(spelling)
-                    if (spelling.length >= 3) {
-                        for (wildcard in buildWildcards(spelling, first_x_chars = 8)) {
-                            sql += " OR wordform GLOB ?||'*' "
-                            args.add(wildcard)
-                        }
-                    }
+                }
+                if (apostropheReplacement != nextword) {
+                    sql += " OR wordform GLOB ?||'*'"
+                    args.add(apostropheReplacement)
                 }
                 sql += ")"
             }
-            // Add cross-wordform predictions if nextword is long enough
-            if (nextword.isNotEmpty() && nextword.length >= 2) {
+
+            // Add cross-wordform predictions if nextword is long enough (>=3 chars, or >=2 chars when there's context)
+            if (nextword.isNotEmpty() && (nextword.length >= 3 || (context.isNotEmpty() && nextword.length >= 2))) {
                 sql += """
                     
                     UNION ALL
-                    -- Cross-wordform predictions
+                     -- Cross-wordform predictions
                     SELECT n.wordform,
                            ? as context_length,
-                           (cast(n.score as real) * cw.score / ?) as final_score,
-                           case when cw.cross_wordform=? then 100.0 else 1.0 end as exact_match_priority,
+                           (cast(n.score as real) * cw.score) as final_score,
+                           case when ? and lower(cw.cross_wordform)=? then 100 else 1 end as exact_match_priority,
                            cw.cross_wordform as lookup_wordform
                     FROM cross_wordforms cw 
                     INNER JOIN ngrams n ON cw.wordform=n.wordform 
                     WHERE n.context=?
                     AND cw.cross_wordform glob ?||'*' """.trimIndent()
                 
-                args.addAll(listOf(context.size, MAX_SCORE/100.0, nextword, context.joinToString(" ").trim(), nextword))
+                args.addAll(listOf(context.size, nextword.isNotEmpty(), nextword, context.joinToString(" ").trim(), nextword))
             }
             
             sql += """
-                ) combined_results
-                GROUP BY wordform
-                ORDER BY context_length DESC, 
-                         MAX(exact_match_priority) DESC, 
-                         final_score DESC,
-                         wordform ASC
-                LIMIT ?""".trimIndent()
+                            ) combined_results
+                            GROUP BY wordform
+                            ORDER BY context_length DESC, 
+                                     MAX(exact_match_priority) DESC, 
+                                     final_score DESC,
+                                     wordform ASC
+                            LIMIT ?""".trimIndent()
             
             args.add(limit)
 
@@ -388,27 +398,31 @@ object TroiSqliteIME {
                     val wordform = it.getString(0)
                     // don't need to get this from the cursor, since we already know it
                     // val contextLength = it.getInt(1)
-                    var score = it.getFloat(2)
+                    var score = it.getInt(2)
                     val lookupWordform = it.getString(3)
-                    
+
+                    // do the bit-shifting *before* rescoring based on length/chars
+                    var combinedScore = ((context.size shl 25) or score).toFloat()
+
                     // Apply length penalty *only* for cross-wordform predictions (when lookupWordform is not empty)
-                    if (lookupWordform.isNotEmpty() && nextword.isNotEmpty()) {
+                    if (nextword.isNotEmpty()) {
                         // find total matched characters between lookupWordform and nextword
-                        val matchedCharCount = countMatchedCharacters(lookupWordform, nextword)
+                        val matchedCharCount = countMatchedCharacters(lookupWordform.drop(1), nextword.drop(1))
                         if (matchedCharCount > 0) {
                             // Apply 0.5^Number of non-matched characters penalty
                             val penalty = 0.5.pow(lookupWordform.length - matchedCharCount).toFloat()
-                            score *= penalty
+                            combinedScore *= penalty
                         }
+                        // length difference penalty, smaller than character difference penalty
+                        combinedScore *= 0.8.pow((lookupWordform.length - nextword.length)).toFloat()
                     }
-                    
-                    val combinedScore = (context.size shl 25) or score.toInt()
+                    score = combinedScore.toInt()
                     val currentScore = nextWordScores[wordform]
 
                     nextWordScores[wordform] = (if (currentScore == null) {
-                        combinedScore
+                        score
                     } else {
-                        maxOf(currentScore, combinedScore)
+                        maxOf(currentScore, score)
                     })
                 }
             }
