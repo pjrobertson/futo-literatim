@@ -47,4 +47,6 @@
     <string name="base_name">Multilingual-74 (default)</string>
     <!-- Model name for the small model -->
     <string name="small_name">Multilingual-244 (slow)</string>
+    <!-- Model name for the tiny welsh model -->
+    <string name="tiny_cy_name">Cymraeg-39 (default)</string>
 </resources>

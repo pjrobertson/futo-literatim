@@ -56,7 +56,8 @@ import org.futo.inputmethod.latin.uix.theme.UixThemeWrapper
 import org.futo.inputmethod.latin.uix.theme.orDefault
 import org.futo.inputmethod.latin.utils.SubtypeLocaleUtils
 import org.futo.inputmethod.latin.xlm.ModelPaths
-import org.futo.voiceinput.shared.BUILTIN_ENGLISH_MODEL
+//import org.futo.voiceinput.shared.BUILTIN_ENGLISH_MODEL
+import org.futo.voiceinput.shared.BUILTIN_WELSH_MODEL
 import org.futo.voiceinput.shared.types.ModelFileFile
 import org.futo.voiceinput.shared.types.ModelLoader
 import java.io.File
@@ -377,7 +378,8 @@ fun determineFileKind(context: Context, file: Uri): FileKindAndInfo {
 
 object ResourceHelper {
     val BuiltInVoiceInputFallbacks = mapOf(
-        "en" to BUILTIN_ENGLISH_MODEL
+        // "en" to BUILTIN_ENGLISH_MODEL,
+        "cy" to BUILTIN_WELSH_MODEL
     )
 
     suspend fun findKeyForLocaleAndKind(context: Context, locale: Locale, kind: FileKind): String? {

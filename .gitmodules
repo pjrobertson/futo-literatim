@@ -3,7 +3,7 @@
 	url = https://gitlab.futo.org/keyboard/android-libs.git
 [submodule "voiceinput-shared/src/main/ml"]
 	path = voiceinput-shared/src/main/ml
-	url = https://gitlab.futo.org/keyboard/voice-input-models.git
+	url = https://github.com/pjrobertson/futo-voice-input-models.git
 [submodule "java/assets/layouts"]
 	path = java/assets/layouts
 	url = https://github.com/futo-org/futo-keyboard-layouts.git
