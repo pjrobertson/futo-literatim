@@ -26,7 +26,7 @@ val ThirdPartyList: List<ThirdPartyItem> = listOf(
         "https://huggingface.co/techiaith/whisper-tiny-ft-cy-en",
         "Copyright (c) 2024, Prifysgol Bangor",
         License.Apache2
-    )
+    ),
     TP(
         "FUTO",
         "Keyboard Based on FUTO Keyboard",
