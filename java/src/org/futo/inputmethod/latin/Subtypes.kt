@@ -113,7 +113,7 @@ object Subtypes {
             return
         }
         
-        // Hard codes to add the Welsh keyboard for LiteratIM (we always want Welsh). TODO: modify if/when expanding to other languages
+        // Hard codes to add the Welsh keyboard for Literatim (we always want Welsh). TODO: modify if/when expanding to other languages
         addLanguage(context, Locale.forLanguageTag("cy"), "welsh_qwerty")
 
         val locales = context.resources.configuration.locales
