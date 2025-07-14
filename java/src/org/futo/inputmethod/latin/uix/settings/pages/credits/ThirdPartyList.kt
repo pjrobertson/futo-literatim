@@ -21,6 +21,13 @@ val ThirdPartyList: List<ThirdPartyItem> = listOf(
         License.HUNSPELL
         ),
     TP(
+        "whisper-tiny-ft-cy-en",
+        "Whisper Tiny Fine-Tuned Welsh-English Model by techiaith. Trained with Common Voice 16.1 Welsh and English dataset, finetuned by Patrick Robertson",
+        "https://huggingface.co/techiaith/whisper-tiny-ft-cy-en",
+        "Copyright (c) 2024, Prifysgol Bangor",
+        License.Apache2
+    )
+    TP(
         "FUTO",
         "Keyboard Based on FUTO Keyboard",
         "https://gitlab.futo.org/keyboard/latinime",
