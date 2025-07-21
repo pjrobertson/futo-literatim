@@ -98,7 +98,7 @@ private val PHRASE_SEPARATOR = Regex("(?:-+(?!\\w)|(?<!\\w)-+|[^-\\w'’\\s]|\\S
  */
 object TroiSqliteIME {
 
-    private val APOSTROPHE_REPLACEMENT = Regex("""(?!:[aeiouy])(i|u|n|m|r|w|ch)$""")
+    private val APOSTROPHE_REPLACEMENT = Regex("""(?!:[aeiouwy])(i|u|n|m|r|w|ch)$""")
 
     private var db: SupportSQLiteDatabase? = null
     private val predictions = mutableListOf<WordPrediction>()
