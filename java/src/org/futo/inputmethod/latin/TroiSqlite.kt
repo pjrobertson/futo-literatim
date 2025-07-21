@@ -375,7 +375,7 @@ object TroiSqliteIME {
                     FROM cross_wordforms cw 
                     INNER JOIN ngrams n ON cw.wordform=n.wordform 
                     WHERE n.context=?
-                    AND cw.cross_wordform glob ?||'*' """.trimIndent()
+                    AND cw.cross_wordform = ? """.trimIndent()
                 
                 args.addAll(listOf(context.size, nextword.isNotEmpty(), nextword, context.joinToString(" ").trim(), nextword))
             }
