@@ -94,13 +94,16 @@ object WelshSpellings {
             }
         }
         
-        // Generate deletions
-        val letters = Digraphs.splitWord(normalizedWordform, wordform)
-        for (i in 1 until letters.size - 1) {
-            val deletion = letters.subList(0, i) + letters.subList(i + 1, letters.size)
-            val deletionString = deletion.joinToString("")
-            spellings.add(deletionString)
+        // Generate deletions (for words longer than 3 characters)
+        if (normalizedWordform.length > 3) {
+            val letters = Digraphs.splitWord(normalizedWordform, wordform)
+            for (i in 1 until letters.size - 1) {
+                val deletion = letters.subList(0, i) + letters.subList(i + 1, letters.size)
+                val deletionString = deletion.joinToString("")
+                spellings.add(deletionString)
+            }
         }
+        
         return spellings
     }
 }
