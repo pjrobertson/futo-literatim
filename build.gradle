@@ -145,7 +145,7 @@ preBuild.dependsOn updateLocales
 android {
     namespace 'org.futo.inputmethod.latin'
 
-    compileSdk 34
+    compileSdk 35
 
     // Required if using classes in android.test.runner
     useLibrary 'android.test.runner'
@@ -158,7 +158,7 @@ android {
 
     defaultConfig {
         minSdk 24
-        targetSdk 34
+        targetSdk 35
         versionName getVersionName()
         versionCode getVersionCode()
 
@@ -355,7 +355,7 @@ dependencies {
 
     implementation 'com.google.code.findbugs:jsr305:3.0.2'
 
-    implementation 'androidx.datastore:datastore-preferences:1.1.1'
+    implementation 'androidx.datastore:datastore-preferences:1.1.7'
     implementation 'androidx.autofill:autofill:1.1.0'
     implementation 'androidx.window:window:1.3.0'
 

@@ -49,7 +49,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -82,6 +81,7 @@ import org.futo.inputmethod.latin.uix.settings.pages.PaymentSurface
 import org.futo.inputmethod.latin.uix.settings.pages.PaymentSurfaceHeading
 import org.futo.inputmethod.latin.uix.settings.useDataStore
 import org.futo.inputmethod.latin.uix.settings.useDataStoreValue
+import org.futo.inputmethod.latin.uix.settings.userSettingToggleDataStore
 import org.futo.inputmethod.latin.uix.theme.Typography
 import java.io.File
 import kotlin.math.roundToInt
@@ -103,6 +103,11 @@ val ClipboardHistoryTimeToKeep = SettingsKey(
 
 val ClipboardHistorySaveSensitive = SettingsKey(
     booleanPreferencesKey("clipboard_history_save_sensitive"),
+    false
+)
+
+val ClipboardShowPinnedOnTop = SettingsKey(
+    booleanPreferencesKey("clipboard_history_show_pinned_on_top"),
     false
 )
 
@@ -235,6 +240,9 @@ val Context.clipboardFile get() = File(filesDir, ClipboardFileName)
 private val ClipboardIOContext = Dispatchers.IO.limitedParallelism(1)
 
 class ClipboardHistoryManager(val context: Context, val coroutineScope: LifecycleCoroutineScope) : PersistentActionState {
+    var clipboardIOFailureReason = ""
+    val clipboardIOFailure = mutableStateOf(false)
+
     companion object {
         val onClipboardImportedFlow = MutableSharedFlow<File>()
     }
@@ -365,7 +373,6 @@ class ClipboardHistoryManager(val context: Context, val coroutineScope: Lifecycl
         }
     }
 
-    val clipboardIOFailure = mutableStateOf(false)
     var saveClipboardLoadJob: Job? = null
     internal fun saveClipboard(exiting: Boolean = false): Job? {
         if(!context.isDirectBootUnlocked) return null
@@ -463,7 +470,6 @@ ${if(clipboardFileSwap.exists()) { clipboardFileSwap.readText() } else { "File d
 """))
     }
 
-    var clipboardIOFailureReason = ""
     private suspend fun loadClipboard() = withContext(ClipboardIOContext) {
         if(!context.isDirectBootUnlocked) {
             clipboardIOFailureReason = "Direct Boot not unlocked"
@@ -513,34 +519,33 @@ ${if(clipboardFileSwap.exists()) { clipboardFileSwap.readText() } else { "File d
     }
 
     fun onPaste(item: ClipboardEntry) {
-        val itemPos = clipboardHistory.indexOf(item)
+        val itemPos = clipboardHistory.indexOf(item).coerceAtLeast(0)
         clipboardHistory.removeAll { it == item }
-
-        clipboardHistory.add(itemPos,
-            ClipboardEntry(
-                timestamp = System.currentTimeMillis(),
-                pinned = item.pinned,
-                text = item.text,
-                uri = item.uri,
-                mimeTypes = item.mimeTypes
-            )
-        )
+        clipboardHistory.add(itemPos, item.copy(timestamp = System.currentTimeMillis()))
 
         saveClipboard()
     }
 
-    fun onPin(item: ClipboardEntry) {
+    fun onTogglePin(item: ClipboardEntry) {
+        var itemPos = clipboardHistory.indexOf(item).coerceAtLeast(0)
         clipboardHistory.removeAll { it == item }
 
-        clipboardHistory.add(
-            ClipboardEntry(
-                timestamp = System.currentTimeMillis(),
+        if(context.getSetting(ClipboardShowPinnedOnTop)) {
+            // With this setting, unpinning can cause the position to dramatically change, so it's
+            // better to just always reinsert into the final position which is more expected.
+            // (the final position is visually the first due to reverse iteration)
+            itemPos = clipboardHistory.size
+        }
+
+        clipboardHistory.add(itemPos, item.copy(
                 pinned = !item.pinned,
-                text = item.text,
-                uri = item.uri,
-                mimeTypes = item.mimeTypes
-            )
-        )
+
+                // Updating timestamp is necessary to prevent the following situation:
+                // 1. Item is past its expiration time but not removed because it's pinned
+                // 2. User unpins it (possibly by accident!)
+                // 3. Item immediately gets deleted because it's past its expiration time
+                timestamp = System.currentTimeMillis(),
+            ))
 
         saveClipboard()
     }
@@ -563,7 +568,6 @@ ${if(clipboardFileSwap.exists()) { clipboardFileSwap.readText() } else { "File d
 
     override fun close() {
         clipboardManager.removePrimaryClipChangedListener(primaryClipChangedListener)
-        runBlocking { saveClipboard(true)?.join() }
     }
 
 }
@@ -633,7 +637,7 @@ val ClipboardHistoryAction = Action(
                                     DialogRequestItem(context.getString(R.string.action_clipboard_manager_unpin_all_items_button)) {
                                         clipboardHistoryManager.clipboardHistory.toList().forEach {
                                             if (it.pinned) {
-                                                clipboardHistoryManager.onPin(it)
+                                                clipboardHistoryManager.onTogglePin(it)
                                             }
                                         }
                                     },
@@ -737,15 +741,22 @@ val ClipboardHistoryAction = Action(
                         }
                     }
                 } else {
+                    val sortedList = when {
+                        useDataStoreValue(ClipboardShowPinnedOnTop) -> clipboardHistoryManager.clipboardHistory
+                            .sortedBy { it.pinned }
+
+                        else -> clipboardHistoryManager.clipboardHistory
+                    }
+
                     LazyVerticalStaggeredGrid(
                         modifier = Modifier.fillMaxWidth(),
                         columns = StaggeredGridCells.Adaptive(140.dp),
                         verticalItemSpacing = 4.dp,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        items(clipboardHistoryManager.clipboardHistory.size, key = { r_i ->
-                            val i = clipboardHistoryManager.clipboardHistory.size - r_i - 1
-                            val entry = clipboardHistoryManager.clipboardHistory[i]
+                        items(sortedList.size, key = { r_i ->
+                            val i = sortedList.size - r_i - 1
+                            val entry = sortedList[i]
 
                             entry.text?.let {
                                 if(it.length > 512) {
@@ -758,8 +769,8 @@ val ClipboardHistoryAction = Action(
                             } ?: i
                             i
                         }) { r_i ->
-                            val i = clipboardHistoryManager.clipboardHistory.size - r_i - 1
-                            val entry = clipboardHistoryManager.clipboardHistory[i]
+                            val i = sortedList.size - r_i - 1
+                            val entry = sortedList[i]
                             ClipboardEntryView(
                                 modifier = Modifier.animateItemPlacement(),
                                 clipboardEntry = entry, onPaste = {
@@ -774,7 +785,7 @@ val ClipboardHistoryAction = Action(
                                     clipboardHistoryManager.onRemove(it)
                                     manager.performHapticAndAudioFeedback(Constants.CODE_TAB, view)
                                 }, onPin = {
-                                    clipboardHistoryManager.onPin(it)
+                                    clipboardHistoryManager.onTogglePin(it)
                                     manager.performHapticAndAudioFeedback(Constants.CODE_TAB, view)
                                 })
                         }
@@ -839,6 +850,11 @@ val ClipboardHistoryAction = Action(
                 },
                 visibilityCheck = { useDataStoreValue(ClipboardHistoryEnabled) }
             ),
+
+            userSettingToggleDataStore(
+                title = R.string.action_clipboard_manager_settings_show_pinned_above_others,
+                setting = ClipboardShowPinnedOnTop
+            ).copy(visibilityCheck = { useDataStoreValue(ClipboardHistoryEnabled) }),
         )
     )
 )
