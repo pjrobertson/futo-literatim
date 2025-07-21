@@ -3,6 +3,7 @@ package org.futo.inputmethod.latin.uix.settings.pages.credits
 
 @Suppress("HardCodedStringLiteral")
 val languageContribs: List<String> = listOf(
+    "Patrick Robertson (cy)",
     "LucasMZ (pt-BR)",
     "Witek (pl)",
     "abb128 (lt, ru)",
@@ -31,6 +32,8 @@ val layoutContribs: List<String> = listOf(
 
 @Suppress("HardCodedStringLiteral")
 val codeContribs: List<String> = listOf(
+    "Patrick Robertson",
+    "David Chan",
     "Adolar0042",
     "arbitrary-dev",
     "barmiro",
