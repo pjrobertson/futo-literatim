@@ -45,7 +45,7 @@
     <string name="action_emoji_search_for_emojis">Search</string>
 
     <!-- For voice input action -->
-    <string name="action_voice_input_title">Voice Input</string>
+    <string name="action_voice_input_title">Welsh Voice Input</string>
     <!-- Same as the one above but it uses the device's default system voice input instead of the built-in -->
     <string name="action_system_voice_input_title">Voice Input (System)</string>
     <string name="action_voice_input_no_model_for_language_x_installed">No voice input model installed for <xliff:g name="language" example="español">%s</xliff:g>, tap to check options?</string>
