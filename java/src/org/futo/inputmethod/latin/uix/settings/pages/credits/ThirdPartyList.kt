@@ -14,11 +14,11 @@ typealias TP = ThirdPartyItem
 @Suppress("HardCodedStringLiteral")
 val ThirdPartyList: List<ThirdPartyItem> = listOf(
     TP(
-        "Hunspell CY",
-        "Fersiwn Cymraeg o wirydd sillafu Hunspell / Welsh version of the Hunspell spellchecker",
-        "https://github.com/techiaith/hunspell-cy/tree/master",
-        "Copyright (c) 2004-2025, Troi & Prifysgol Bangor",
-        License.HUNSPELL
+        "Lecsicon Cymraeg Bangor",
+        "Lecsicon Cymraeg Prifysgol Bangor // Bangor University Welsh Language Lexicon",
+        "https://github.com/techiaith/lecsicon-cymraeg-bangor",
+        "Copyright (c) 2025, Prifysgol Bangor",
+        License.CC0
         ),
     TP(
         "whisper-tiny-ft-cy-en",
