@@ -1,6 +1,5 @@
 package org.futo.inputmethod.latin.uix
 
-import android.app.Activity
 import android.content.ClipDescription
 import android.content.Context
 import android.content.Intent
@@ -12,6 +11,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Log
+import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
@@ -122,7 +122,6 @@ import org.futo.inputmethod.latin.uix.actions.KeyboardModeAction
 import org.futo.inputmethod.latin.uix.actions.PersistentEmojiState
 import org.futo.inputmethod.latin.uix.resizing.KeyboardResizers
 import org.futo.inputmethod.latin.uix.settings.DataStoreCacheProvider
-import org.futo.inputmethod.latin.uix.settings.SettingsActivity
 import org.futo.inputmethod.latin.uix.settings.pages.ActionBarDisplayedSetting
 import org.futo.inputmethod.latin.uix.settings.pages.InlineAutofillSetting
 import org.futo.inputmethod.latin.uix.settings.useDataStore
@@ -132,7 +131,6 @@ import org.futo.inputmethod.latin.uix.theme.Typography
 import org.futo.inputmethod.latin.uix.theme.UixThemeAuto
 import org.futo.inputmethod.latin.uix.theme.UixThemeWrapper
 import org.futo.inputmethod.latin.uix.utils.TextContext
-import org.futo.inputmethod.updates.DISABLE_UPDATE_REMINDER
 import org.futo.inputmethod.updates.autoDeferManualUpdateIfNeeded
 import org.futo.inputmethod.updates.deferManualUpdate
 import org.futo.inputmethod.updates.isManualUpdateTimeExpired
@@ -488,6 +486,19 @@ class UixActionKeyboardManager(val uixManager: UixManager, val latinIME: LatinIM
         latinIME.invalidateKeyboard()
     }
 
+    override fun copyToClipboard(cut: Boolean) {
+        if(cut) {
+            sendKeyEvent(KeyEvent.KEYCODE_X, KeyEvent.META_CTRL_ON)
+        } else {
+            sendKeyEvent(KeyEvent.KEYCODE_C, KeyEvent.META_CTRL_ON)
+        }
+    }
+
+    override fun pasteFromClipboard() {
+        sendKeyEvent(KeyEvent.KEYCODE_V, KeyEvent.META_CTRL_ON)
+        uixManager.dismissQuickClips()
+    }
+
     override fun getSizingCalculator(): KeyboardSizingCalculator =
         latinIME.sizingCalculator
 
@@ -604,13 +615,15 @@ class UixManager(private val latinIME: LatinIME) {
                 null
             }
 
-            if(actionBarShown.value) {
+            val inlineSuggestions = run {
+                if(!inlineStuffHiddenByTyping.value) inlineSuggestions.value else emptyList()
+            }
+
+            if(actionBarShown.value || inlineSuggestions.isNotEmpty()) {
                 ActionBar(
                     suggestedWordsOrNull,
                     latinIME.latinIMELegacy as SuggestionStripViewListener,
-                    inlineSuggestions = run {
-                        if(!inlineStuffHiddenByTyping.value) inlineSuggestions.value else emptyList()
-                    },
+                    inlineSuggestions = inlineSuggestions,
                     onActionActivated = {
                         keyboardManagerForAction.performHapticAndAudioFeedback(
                             Constants.CODE_TAB,
@@ -974,7 +987,7 @@ class UixManager(private val latinIME: LatinIME) {
             }, Modifier.align(Alignment.CenterEnd)) {
                 Icon(
                     painterResource(R.drawable.keyboard_gear),
-                    contentDescription = "Keyboard modes",
+                    contentDescription = stringResource(R.string.action_keyboard_modes_title),
                     tint = LocalKeyboardScheme.current.onSurfaceVariant
                 )
             }
@@ -1077,7 +1090,8 @@ class UixManager(private val latinIME: LatinIME) {
                         // Show opposite icon
                         OneHandedDirection.Left -> R.drawable.chevron_right
                         OneHandedDirection.Right -> R.drawable.chevron_left
-                    }), contentDescription = "Switch handedness")
+                    }), contentDescription = stringResource(R.string.one_handed_mode_switch_hand)
+                    )
                 }
 
                 Spacer(Modifier.weight(1.0f))
@@ -1085,7 +1099,7 @@ class UixManager(private val latinIME: LatinIME) {
                 IconButton(onClick = {
                     latinIME.sizingCalculator.exitOneHandedMode()
                 }) {
-                    Icon(painterResource(R.drawable.maximize), contentDescription = "Exit one-handed mode")
+                    Icon(painterResource(R.drawable.maximize), contentDescription = stringResource(R.string.one_handed_mode_exit))
                 }
 
                 Spacer(Modifier.height(navBarHeight()))
@@ -1220,7 +1234,7 @@ class UixManager(private val latinIME: LatinIME) {
 
         val updateInfo = retrieveSavedLastUpdateCheckResult(latinIME)
         if(updateInfo != null && updateInfo.isNewer()) {
-            if(!latinIME.getSetting(DISABLE_UPDATE_REMINDER)) {
+            /*if(!latinIME.getSetting(DISABLE_UPDATE_REMINDER)) {
                 numSuggestionsSinceNotice = 0
                 currentNotice.value = object : ImportantNotice {
                     @Composable
@@ -1245,7 +1259,7 @@ class UixManager(private val latinIME: LatinIME) {
                         context.startActivity(intent)
                     }
                 }
-            }
+            }*/
         } else {
             if(isManualUpdateTimeExpired(latinIME)) {
                 numSuggestionsSinceNotice = 0
@@ -1437,6 +1451,7 @@ class UixManager(private val latinIME: LatinIME) {
     }
 
     private val quickClipState: MutableState<QuickClipState?> = mutableStateOf(null)
+    fun dismissQuickClips() { quickClipState.value = null }
     fun inputStarted(editorInfo: EditorInfo?) {
         inlineStuffHiddenByTyping.value = false
         this.editorInfo = editorInfo
@@ -1465,17 +1480,26 @@ class UixManager(private val latinIME: LatinIME) {
         inlineStuffHiddenByTyping.value = textBlank == false
     }
 
-    fun updateLocale(locale: Locale) {
+    private var prevLocale: Locale? = null
+    fun updateLocale(locale: Locale): Configuration? {
+        var result: Configuration? = null
+        prevLocale = locale
         if(UixLocaleFollowsSubtypeLocale) {
             latinIME.resources.apply {
                 val config = Configuration(configuration)
                 config.setLocale(locale)
+                result = config
                 updateConfiguration(config, displayMetrics)
             }
             setContent()
         }
 
         PersistentEmojiState.loadTranslationsForLanguage(latinIME, locale)
+        return result
+    }
+
+    fun updateLocaleOnCfgChanged(): Configuration? {
+        return prevLocale?.let { updateLocale(it) }
     }
 
     fun onDestroy() {

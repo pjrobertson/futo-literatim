@@ -23,6 +23,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.NonSkippableComposable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -187,20 +188,17 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
     val sizingCalculator = KeyboardSizingCalculator(this, uixManager)
 
     private var activeThemeOption: ThemeOption? = null
-    private var activeColorScheme = DefaultDarkScheme.obtainColors(this)
+    private val activeColorScheme = mutableStateOf(DefaultDarkScheme.obtainColors(this))
     private var pendingRecreateKeyboard: Boolean = false
 
-    val themeOption get() = activeThemeOption
-    val colorScheme get() = activeColorScheme
-    val keyboardColor get() = drawableProvider?.keyboardColor?.let { androidx.compose.ui.graphics.Color(it) } ?: colorScheme.keyboardSurface
-    val actionBarColor get() = drawableProvider?.actionBarColor ?: colorScheme.surface
+    val colorScheme get() = activeColorScheme.value
+    val keyboardColor get() = colorScheme.keyboardSurface.let { fallback ->
+        drawableProvider?.keyboardColor?.let { androidx.compose.ui.graphics.Color(it) } ?: fallback
+    }
 
     val size: MutableState<ComputedKeyboardSize?> = mutableStateOf(null)
-    private fun calculateSize(): ComputedKeyboardSize
-            = sizingCalculator.calculate(
-        getPrimaryLayoutOverride(currentInputEditorInfo)
-            ?: latinIMELegacy.mKeyboardSwitcher.keyboard?.mId?.mKeyboardLayoutSetName ?: "qwerty",
-
+    private fun calculateSize(): ComputedKeyboardSize? = sizingCalculator.calculate(
+        getPrimaryLayoutOverride(currentInputEditorInfo) ?: latinIMELegacy.mKeyboardSwitcher.keyboard?.mId?.mKeyboardLayoutSetName ?: "qwerty",
         Settings.getInstance().current
     )
 
@@ -259,7 +257,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
     }
 
     private fun updateDrawableProvider(colorScheme: KeyboardColorScheme) {
-        activeColorScheme = colorScheme
+        activeColorScheme.value = colorScheme
         drawableProvider = BasicThemeProvider(this, colorScheme)
 
         updateNavigationBarVisibility()
@@ -267,7 +265,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
     }
 
     override fun getDrawableProvider(): DynamicThemeProvider {
-        return drawableProvider ?: BasicThemeProvider(this, activeColorScheme).let {
+        return drawableProvider ?: BasicThemeProvider(this, colorScheme).let {
             drawableProvider = it
             it
         }
@@ -281,7 +279,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         }
 
         if(activeThemeOption?.dynamic == true) {
-            val currColors = activeColorScheme
+            val currColors = colorScheme
             val nextColors = activeThemeOption!!.obtainColors(this)
 
             if(currColors.differsFrom(nextColors)) {
@@ -293,14 +291,14 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
         // TODO: Verify this actually fixes anything
         if(drawableProvider?.displayDpi != resources.displayMetrics.densityDpi) {
-            updateDrawableProvider(activeColorScheme)
+            updateDrawableProvider(colorScheme)
             recreateKeyboard()
             return
         }
     }
 
     fun onSizeUpdated() {
-        val newSize = calculateSize()
+        val newSize = calculateSize() ?: return
         val shouldInvalidateKeyboard = size.value?.let { oldSize ->
             when {
                 oldSize is FloatingKeyboardSize && newSize is FloatingKeyboardSize -> {
@@ -394,7 +392,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             val themeOption = ThemeOptions[it].orDefault(this@LatinIME)
 
             activeThemeOption = themeOption
-            activeColorScheme = themeOption.obtainColors(this@LatinIME)
+            activeColorScheme.value = themeOption.obtainColors(this@LatinIME)
         }
 
         latinIMELegacy.onCreate()
@@ -512,17 +510,18 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
         updateNavigationBarVisibility()
         latinIMELegacy.onConfigurationChanged(newConfig)
         super.onConfigurationChanged(newConfig)
+        uixManager.updateLocaleOnCfgChanged()
     }
 
     override fun onInitializeInterface() {
         latinIMELegacy.onInitializeInterface()
     }
 
-    private var legacyInputView: View? = null
+    private var legacyInputView: MutableState<View?> = mutableStateOf(null)
     override fun onCreateInputView(): View {
         val composeView = super.onCreateInputView()
 
-        legacyInputView = latinIMELegacy.onCreateInputView()
+        legacyInputView.value = latinIMELegacy.onCreateInputView()
         latinIMELegacy.setComposeInputView(composeView)
 
         uixManager.setContent()
@@ -555,6 +554,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             }
         }.safeKeyboardPadding()
 
+        val legacyInputView = legacyInputView.value
         key(legacyInputView) {
             AndroidView(factory = {
                 legacyInputView!!.also {
@@ -570,10 +570,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
     // necessary for when KeyboardSwitcher updates the theme
     fun updateLegacyView(newView: View) {
-        Log.w("LatinIME", "Updating legacy view")
-        legacyInputView = newView
-
-        uixManager.setContent()
+        legacyInputView.value = newView
         composeView?.let {
             latinIMELegacy.setComposeInputView(it)
         }
@@ -588,7 +585,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
             latinIMELegacy.setComposeInputView(it)
         }
 
-        latinIMELegacy.setInputView(legacyInputView)
+        latinIMELegacy.setInputView(legacyInputView.value)
     }
 
     override fun setCandidatesView(view: View?) {
@@ -712,7 +709,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
     override fun onComputeInsets(outInsets: Insets?) {
         // This method may be called before {@link #setInputView(View)}.
-        if (legacyInputView == null || composeView == null) {
+        if (legacyInputView.value == null || composeView == null) {
             return
         }
 
@@ -810,7 +807,7 @@ class LatinIME : InputMethodServiceCompose(), LatinIMELegacy.SuggestionStripCont
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle): InlineSuggestionsRequest {
-        return createInlineSuggestionsRequest(this, this.activeColorScheme)
+        return createInlineSuggestionsRequest(this, colorScheme)
     }
 
     @RequiresApi(Build.VERSION_CODES.R)

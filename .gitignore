@@ -1,4 +1,5 @@
 # Gradle
+.DS_Store
 .externalNativeBuild/
 .gradle/
 .idea/
@@ -8,4 +9,4 @@ local.properties
 crashreporting.properties
 keystore.properties
 key.jks
-.DS_Store
+.cxx
