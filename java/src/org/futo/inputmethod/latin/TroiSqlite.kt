@@ -141,6 +141,11 @@ object TroiSqliteIME {
                     override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
                         throw IllegalStateException("Database version mismatch")
                     }
+
+                    override fun onDowngrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {
+                        // allow downgrading of database - basically we only care if the version number is different
+                        throw IllegalStateException("Database version mismatch")
+                    }
                 })
                 .build()
         )
@@ -325,8 +330,8 @@ object TroiSqliteIME {
         }
 
         val apostropheReplacement = APOSTROPHE_REPLACEMENT.replace(nextword, "’$1")
-
         while (true) {
+            val joinedContext = context.joinToString(" ").trim()
             val limit = maxRows - nextWordScores.size
             var sql = """
                 SELECT wordform, 
@@ -335,27 +340,27 @@ object TroiSqliteIME {
                        lookup_wordform
                 FROM (
                     -- Direct ngram predictions
-                    SELECT wordform, 
+                    SELECT COALESCE(original_wordform, wordform) as wordform, 
                            ? as context_length,
                            score as final_score,
                            case when ? and (wordform=? or wordform=?) then 100 
                            else 1
                            end as exact_match_priority,
-                           -- this is set to '0' since we're not going to give penalties on wordform_length for ngram cases 
-                           -- (see cross_wordforms sub select for how we use it there)
                            wordform as lookup_wordform
                     FROM ngrams 
                     WHERE context=?""".trimIndent()
-            val args = mutableListOf<Any>(context.size, nextword.isNotEmpty(), nextword.drop(1), apostropheReplacement.drop(1), context.joinToString(" ").trim())
+            val args = mutableListOf<Any>(context.size, nextword.isNotEmpty(), nextword, apostropheReplacement, joinedContext)
 
             if (nextword.isNotEmpty()) {
                 sql += " AND (false"
                 for (spelling in spellings) {
-                    sql += " OR wordform GLOB ?||'*'"
-                    args.add(spelling)
+                    sql += " OR wordform GLOB ?"
+                    args.add("$spelling*")
                 }
                 if (apostropheReplacement != nextword) {
-                    sql += " OR wordform GLOB ?||'*'"
+                    // for apostrophe replacement, we can do exact match, don't need glob
+                    // because apostrophe's always come at the end of the word. E.g. "dwi'n*" or "yw'n*" make no sense
+                    sql += " OR wordform = ?"
                     args.add(apostropheReplacement)
                 }
                 sql += ")"
@@ -367,27 +372,27 @@ object TroiSqliteIME {
                     
                     UNION ALL
                      -- Cross-wordform predictions
-                    SELECT n.wordform,
+                    SELECT COALESCE(n.original_wordform, n.wordform) as wordform,
                            ? as context_length,
                            (cast(n.score as real) * cw.score) as final_score,
-                           case when ? and lower(cw.cross_wordform)=? then 100 else 1 end as exact_match_priority,
+                           case when ? and cw.cross_wordform=? then 100 else 1 end as exact_match_priority,
                            cw.cross_wordform as lookup_wordform
                     FROM cross_wordforms cw 
-                    INNER JOIN ngrams n ON cw.wordform=n.wordform 
+                    INNER JOIN ngrams n ON cw.wordform=COALESCE(n.original_wordform, n.wordform)
                     WHERE n.context=?
-                    AND cw.cross_wordform = ? """.trimIndent()
+                    AND cw.cross_wordform GLOB ? AND length(cw.cross_wordform) <= ?""".trimIndent()
                 
-                args.addAll(listOf(context.size, nextword.isNotEmpty(), nextword, context.joinToString(" ").trim(), nextword))
+                args.addAll(listOf(context.size, nextword.isNotEmpty(), nextword, context.joinToString(" ").trim(), "$nextword*", nextword.length + 4))
             }
             
             sql += """
-                            ) combined_results
-                            GROUP BY wordform
-                            ORDER BY context_length DESC, 
-                                     MAX(exact_match_priority) DESC, 
-                                     final_score DESC,
-                                     wordform ASC
-                            LIMIT ?""".trimIndent()
+                    ) combined_results
+                    GROUP BY wordform
+                    ORDER BY context_length DESC, 
+                                MAX(exact_match_priority) DESC, 
+                                final_score DESC,
+                                wordform ASC
+                    LIMIT ?""".trimIndent()
             
             args.add(limit)
 
@@ -410,7 +415,7 @@ object TroiSqliteIME {
                         val matchedCharCount = countMatchedCharacters(lookupWordform.drop(1), nextword.drop(1))
                         if (matchedCharCount > 0) {
                             // Apply 0.5^Number of non-matched characters penalty
-                            val penalty = 0.5.pow(lookupWordform.length - matchedCharCount).toFloat()
+                            val penalty = 0.5.pow(lookupWordform.drop(1).length - matchedCharCount).toFloat()
                             combinedScore *= penalty
                         }
                         // length difference penalty, smaller than character difference penalty
